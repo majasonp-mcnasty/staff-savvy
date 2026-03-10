@@ -131,6 +131,7 @@ export function generateSchedule(
         if (x.shiftHours < 1) return false; // avoid fragmented shifts < 1hr
         if (x.currentHours + x.shiftHours > x.emp.maxWeeklyHours) return false;
         if (employeeHasConflict(shifts, x.emp.id, req.day, x.window)) return false;
+        if (hasRestViolation(shifts, x.emp.id, req.day, x.window, budget.minRestHours)) return false;
         return true;
       })
       .sort((a, b) => {
