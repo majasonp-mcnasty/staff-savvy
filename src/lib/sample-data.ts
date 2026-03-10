@@ -111,4 +111,5 @@ export const DEFAULT_BUDGET: BudgetSettings = {
   weeklyBudgetCap: 5000,
   overtimeThreshold: 40,
   overtimeMultiplier: 1.5,
+  minRestHours: 8,
 };

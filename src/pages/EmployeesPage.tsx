@@ -19,6 +19,7 @@ function newEmployee(): Employee {
     performanceRating: 3, seniorityLevel: 'junior',
     qualifiedStations: [],
     availability: { ...EMPTY_AVAILABILITY },
+    timeOff: [],
   };
 }
 
