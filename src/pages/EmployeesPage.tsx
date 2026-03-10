@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAppState } from '@/context/AppContext';
-import { Employee, DayOfWeek, DAYS_OF_WEEK, DAY_LABELS, generateId, TimeWindow } from '@/lib/types';
+import { Employee, DayOfWeek, DAYS_OF_WEEK, DAY_LABELS, generateId, TimeWindow, TimeOffRequest } from '@/lib/types';
 import { Plus, Pencil, Trash2, X, Check, Star } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
