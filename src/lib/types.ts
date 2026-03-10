@@ -80,6 +80,7 @@ export interface BudgetSettings {
   weeklyBudgetCap: number | null;
   overtimeThreshold: number; // hours per week before overtime kicks in
   overtimeMultiplier: number;
+  minRestHours: number; // minimum hours between shifts on consecutive days
 }
 
 export function timeToMinutes(time: string): number {
