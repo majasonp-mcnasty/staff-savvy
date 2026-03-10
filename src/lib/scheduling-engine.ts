@@ -34,6 +34,32 @@ function employeeHasConflict(shifts: ScheduleShift[], employeeId: string, day: D
   );
 }
 
+function hasRestViolation(shifts: ScheduleShift[], employeeId: string, day: DayOfWeek, tw: TimeWindow, minRestHours: number): boolean {
+  if (minRestHours <= 0) return false;
+  const dayIdx = DAY_INDEX[day];
+  const minRestMinutes = minRestHours * 60;
+  const shiftStart = timeToMinutes(tw.start);
+  const shiftEnd = timeToMinutes(tw.end);
+
+  for (const s of shifts) {
+    if (s.employeeId !== employeeId) continue;
+    const sDayIdx = DAY_INDEX[s.day];
+    // Previous day: check gap between end of prev shift and start of this shift
+    if (sDayIdx === dayIdx - 1 || (dayIdx === 0 && sDayIdx === 6)) {
+      const prevEnd = timeToMinutes(s.timeWindow.end);
+      const gap = (24 * 60 - prevEnd) + shiftStart;
+      if (gap < minRestMinutes) return true;
+    }
+    // Next day: check gap between end of this shift and start of next shift
+    if (sDayIdx === dayIdx + 1 || (dayIdx === 6 && sDayIdx === 0)) {
+      const nextStart = timeToMinutes(s.timeWindow.start);
+      const gap = (24 * 60 - shiftEnd) + nextStart;
+      if (gap < minRestMinutes) return true;
+    }
+  }
+  return false;
+}
+
 function totalEmployeeHours(shifts: ScheduleShift[], employeeId: string): number {
   return shifts
     .filter(s => s.employeeId === employeeId)
