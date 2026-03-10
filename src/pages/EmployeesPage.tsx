@@ -141,7 +141,7 @@ export default function EmployeesPage() {
             <div className="flex gap-1 mb-2">
               {DAYS_OF_WEEK.map(d => {
                 const avail = emp.availability[d]?.length > 0;
-                const off = emp.timeOff.some(to => to.day === d);
+                const off = (emp.timeOff || []).some(to => to.day === d);
                 return (
                   <div
                     key={d}
@@ -155,10 +155,10 @@ export default function EmployeesPage() {
                 );
               })}
             </div>
-            {emp.timeOff.length > 0 && (
+            {(emp.timeOff || []).length > 0 && (
               <div className="flex items-center gap-1 text-[10px] text-destructive">
                 <CalendarOff className="w-3 h-3" />
-                {emp.timeOff.length} day(s) off
+                {(emp.timeOff || []).length} day(s) off
               </div>
             )}
           </div>
