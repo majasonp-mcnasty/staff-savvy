@@ -79,6 +79,7 @@ export const SAMPLE_EMPLOYEES: Employee[] = [
       saturday: [{ start: '10:00', end: '18:00' }],
       sunday: [{ start: '10:00', end: '18:00' }],
     },
+    timeOff: [{ day: 'tuesday', reason: 'Personal' }],
   },
 ];
 
