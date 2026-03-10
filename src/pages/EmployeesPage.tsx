@@ -158,7 +158,7 @@ export default function EmployeesPage() {
             {(emp.timeOff || []).length > 0 && (
               <div className="flex items-center gap-1 text-[10px] text-destructive">
                 <CalendarOff className="w-3 h-3" />
-                {emp.timeOff.length} day(s) off
+                {(emp.timeOff || []).length} day(s) off
               </div>
             )}
           </div>
