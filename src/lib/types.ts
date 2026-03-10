@@ -27,6 +27,11 @@ export interface TimeWindow {
   end: string;   // "HH:MM"
 }
 
+export interface TimeOffRequest {
+  day: DayOfWeek;
+  reason?: string;
+}
+
 export interface Employee {
   id: string;
   name: string;
@@ -36,6 +41,7 @@ export interface Employee {
   seniorityLevel: 'junior' | 'mid' | 'senior';
   qualifiedStations: string[];
   availability: Record<DayOfWeek, TimeWindow[]>;
+  timeOff: TimeOffRequest[];
 }
 
 export interface Station {
