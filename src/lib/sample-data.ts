@@ -35,6 +35,7 @@ export const SAMPLE_EMPLOYEES: Employee[] = [
       saturday: [{ start: '09:00', end: '17:00' }],
       sunday: [],
     },
+    timeOff: [],
   },
   {
     id: 'emp-3', name: 'Emily Rodriguez', hourlyWage: 14, maxWeeklyHours: 30,
