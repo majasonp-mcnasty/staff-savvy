@@ -141,7 +141,7 @@ export default function EmployeesPage() {
             <div className="flex gap-1 mb-2">
               {DAYS_OF_WEEK.map(d => {
                 const avail = emp.availability[d]?.length > 0;
-                const off = emp.timeOff.some(to => to.day === d);
+                const off = (emp.timeOff || []).some(to => to.day === d);
                 return (
                   <div
                     key={d}
