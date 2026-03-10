@@ -10,7 +10,6 @@ const DAY_INDEX: Record<DayOfWeek, number> = {
   monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6,
 };
 
-const SENIORITY_RANK: Record<string, number> = { junior: 1, mid: 2, senior: 3 };
 
 function overlaps(a: TimeWindow, b: TimeWindow): boolean {
   return timeToMinutes(a.start) < timeToMinutes(b.end) && timeToMinutes(b.start) < timeToMinutes(a.end);
