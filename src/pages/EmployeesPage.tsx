@@ -257,6 +257,29 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
+              <div>
+                <Label>Time Off Requests</Label>
+                <p className="text-xs text-muted-foreground mb-1.5">Select days this employee has requested off</p>
+                <div className="flex gap-2">
+                  {DAYS_OF_WEEK.map(day => {
+                    const isOff = editing.timeOff.some(to => to.day === day);
+                    return (
+                      <button
+                        key={day}
+                        onClick={() => toggleTimeOff(day)}
+                        className={`flex-1 text-center text-[11px] font-medium py-2 rounded-md border transition-all ${
+                          isOff
+                            ? 'bg-destructive/10 text-destructive border-destructive/30'
+                            : 'bg-muted text-muted-foreground border-border hover:border-primary/50'
+                        }`}
+                      >
+                        {DAY_LABELS[day]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={save}
