@@ -75,6 +75,20 @@ export default function EmployeesPage() {
     });
   }
 
+  function toggleTimeOff(day: DayOfWeek) {
+    if (!editing) return;
+    setEditing(prev => {
+      if (!prev) return prev;
+      const has = prev.timeOff.some(to => to.day === day);
+      return {
+        ...prev,
+        timeOff: has
+          ? prev.timeOff.filter(to => to.day !== day)
+          : [...prev.timeOff, { day }],
+      };
+    });
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
