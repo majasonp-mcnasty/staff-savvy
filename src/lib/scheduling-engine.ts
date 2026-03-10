@@ -108,6 +108,8 @@ export function generateSchedule(
       .filter(emp => {
         if (!emp.qualifiedStations.includes(req.stationId)) return false;
         if (req.minSeniorityLevel && SENIORITY_RANK[emp.seniorityLevel] < SENIORITY_RANK[req.minSeniorityLevel]) return false;
+        // Check time-off
+        if (emp.timeOff.some(to => to.day === req.day)) return false;
         // Check availability
         const dayAvail = emp.availability[req.day] || [];
         return dayAvail.some(tw => overlaps(tw, req.timeWindow));
