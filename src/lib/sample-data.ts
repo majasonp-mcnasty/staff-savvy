@@ -20,6 +20,7 @@ export const SAMPLE_EMPLOYEES: Employee[] = [
       friday: [{ start: '06:00', end: '16:00' }],
       saturday: [], sunday: [],
     },
+    timeOff: [],
   },
   {
     id: 'emp-2', name: 'Marcus Johnson', hourlyWage: 15, maxWeeklyHours: 35,
@@ -34,6 +35,7 @@ export const SAMPLE_EMPLOYEES: Employee[] = [
       saturday: [{ start: '09:00', end: '17:00' }],
       sunday: [],
     },
+    timeOff: [],
   },
   {
     id: 'emp-3', name: 'Emily Rodriguez', hourlyWage: 14, maxWeeklyHours: 30,
@@ -47,6 +49,7 @@ export const SAMPLE_EMPLOYEES: Employee[] = [
       saturday: [{ start: '09:00', end: '17:00' }],
       sunday: [{ start: '09:00', end: '17:00' }],
     },
+    timeOff: [],
   },
   {
     id: 'emp-4', name: 'James Wilson', hourlyWage: 16, maxWeeklyHours: 40,
@@ -61,6 +64,7 @@ export const SAMPLE_EMPLOYEES: Employee[] = [
       saturday: [{ start: '08:00', end: '14:00' }],
       sunday: [],
     },
+    timeOff: [],
   },
   {
     id: 'emp-5', name: 'Aisha Patel', hourlyWage: 13, maxWeeklyHours: 25,
@@ -75,6 +79,7 @@ export const SAMPLE_EMPLOYEES: Employee[] = [
       saturday: [{ start: '10:00', end: '18:00' }],
       sunday: [{ start: '10:00', end: '18:00' }],
     },
+    timeOff: [{ day: 'tuesday', reason: 'Personal' }],
   },
 ];
 
@@ -106,4 +111,5 @@ export const DEFAULT_BUDGET: BudgetSettings = {
   weeklyBudgetCap: 5000,
   overtimeThreshold: 40,
   overtimeMultiplier: 1.5,
+  minRestHours: 8,
 };

@@ -6,6 +6,11 @@ import {
 
 const SENIORITY_RANK: Record<string, number> = { junior: 1, mid: 2, senior: 3 };
 
+const DAY_INDEX: Record<DayOfWeek, number> = {
+  monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6,
+};
+
+
 function overlaps(a: TimeWindow, b: TimeWindow): boolean {
   return timeToMinutes(a.start) < timeToMinutes(b.end) && timeToMinutes(b.start) < timeToMinutes(a.end);
 }
@@ -26,6 +31,32 @@ function employeeHasConflict(shifts: ScheduleShift[], employeeId: string, day: D
   return shifts.some(s =>
     s.employeeId === employeeId && s.day === day && overlaps(s.timeWindow, tw)
   );
+}
+
+function hasRestViolation(shifts: ScheduleShift[], employeeId: string, day: DayOfWeek, tw: TimeWindow, minRestHours: number): boolean {
+  if (minRestHours <= 0) return false;
+  const dayIdx = DAY_INDEX[day];
+  const minRestMinutes = minRestHours * 60;
+  const shiftStart = timeToMinutes(tw.start);
+  const shiftEnd = timeToMinutes(tw.end);
+
+  for (const s of shifts) {
+    if (s.employeeId !== employeeId) continue;
+    const sDayIdx = DAY_INDEX[s.day];
+    // Previous day: check gap between end of prev shift and start of this shift
+    if (sDayIdx === dayIdx - 1 || (dayIdx === 0 && sDayIdx === 6)) {
+      const prevEnd = timeToMinutes(s.timeWindow.end);
+      const gap = (24 * 60 - prevEnd) + shiftStart;
+      if (gap < minRestMinutes) return true;
+    }
+    // Next day: check gap between end of this shift and start of next shift
+    if (sDayIdx === dayIdx + 1 || (dayIdx === 6 && sDayIdx === 0)) {
+      const nextStart = timeToMinutes(s.timeWindow.start);
+      const gap = (24 * 60 - shiftEnd) + nextStart;
+      if (gap < minRestMinutes) return true;
+    }
+  }
+  return false;
 }
 
 function totalEmployeeHours(shifts: ScheduleShift[], employeeId: string): number {
@@ -76,6 +107,8 @@ export function generateSchedule(
       .filter(emp => {
         if (!emp.qualifiedStations.includes(req.stationId)) return false;
         if (req.minSeniorityLevel && SENIORITY_RANK[emp.seniorityLevel] < SENIORITY_RANK[req.minSeniorityLevel]) return false;
+        // Check time-off
+        if (emp.timeOff.some(to => to.day === req.day)) return false;
         // Check availability
         const dayAvail = emp.availability[req.day] || [];
         return dayAvail.some(tw => overlaps(tw, req.timeWindow));
@@ -97,6 +130,7 @@ export function generateSchedule(
         if (x.shiftHours < 1) return false; // avoid fragmented shifts < 1hr
         if (x.currentHours + x.shiftHours > x.emp.maxWeeklyHours) return false;
         if (employeeHasConflict(shifts, x.emp.id, req.day, x.window)) return false;
+        if (hasRestViolation(shifts, x.emp.id, req.day, x.window, budget.minRestHours)) return false;
         return true;
       })
       .sort((a, b) => {

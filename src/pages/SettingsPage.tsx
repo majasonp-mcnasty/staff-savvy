@@ -52,6 +52,18 @@ export default function SettingsPage() {
           />
           <p className="text-xs text-muted-foreground mt-1">e.g., 1.5 = time and a half</p>
         </div>
+
+        <div>
+          <Label>Minimum Rest Between Shifts (hours)</Label>
+          <Input
+            type="number"
+            min={0}
+            max={24}
+            value={budget.minRestHours}
+            onChange={e => setBudget(prev => ({ ...prev, minRestHours: +e.target.value }))}
+          />
+          <p className="text-xs text-muted-foreground mt-1">Minimum gap between shifts on consecutive days (e.g., 8h)</p>
+        </div>
       </div>
 
       <div className="stat-card">

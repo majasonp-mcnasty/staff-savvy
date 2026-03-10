@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAppState } from '@/context/AppContext';
-import { Employee, DayOfWeek, DAYS_OF_WEEK, DAY_LABELS, generateId, TimeWindow } from '@/lib/types';
-import { Plus, Pencil, Trash2, X, Check, Star } from 'lucide-react';
+import { Employee, DayOfWeek, DAYS_OF_WEEK, DAY_LABELS, generateId, TimeWindow, TimeOffRequest } from '@/lib/types';
+import { Plus, Pencil, Trash2, X, Check, Star, CalendarOff } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,7 @@ function newEmployee(): Employee {
     performanceRating: 3, seniorityLevel: 'junior',
     qualifiedStations: [],
     availability: { ...EMPTY_AVAILABILITY },
+    timeOff: [],
   };
 }
 
@@ -74,6 +75,20 @@ export default function EmployeesPage() {
     });
   }
 
+  function toggleTimeOff(day: DayOfWeek) {
+    if (!editing) return;
+    setEditing(prev => {
+      if (!prev) return prev;
+      const has = prev.timeOff.some(to => to.day === day);
+      return {
+        ...prev,
+        timeOff: has
+          ? prev.timeOff.filter(to => to.day !== day)
+          : [...prev.timeOff, { day }],
+      };
+    });
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -123,21 +138,29 @@ export default function EmployeesPage() {
                 ) : null;
               })}
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1 mb-2">
               {DAYS_OF_WEEK.map(d => {
                 const avail = emp.availability[d]?.length > 0;
+                const off = emp.timeOff.some(to => to.day === d);
                 return (
                   <div
                     key={d}
                     className={`flex-1 text-center text-[10px] font-medium py-1 rounded ${
-                      avail ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+                      off ? 'bg-destructive/10 text-destructive' : avail ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
                     }`}
+                    title={off ? 'Time off' : avail ? 'Available' : 'Unavailable'}
                   >
                     {DAY_LABELS[d][0]}
                   </div>
                 );
               })}
             </div>
+            {emp.timeOff.length > 0 && (
+              <div className="flex items-center gap-1 text-[10px] text-destructive">
+                <CalendarOff className="w-3 h-3" />
+                {emp.timeOff.length} day(s) off
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -229,6 +252,29 @@ export default function EmployeesPage() {
                           </button>
                         )}
                       </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <Label>Time Off Requests</Label>
+                <p className="text-xs text-muted-foreground mb-1.5">Select days this employee has requested off</p>
+                <div className="flex gap-2">
+                  {DAYS_OF_WEEK.map(day => {
+                    const isOff = editing.timeOff.some(to => to.day === day);
+                    return (
+                      <button
+                        key={day}
+                        onClick={() => toggleTimeOff(day)}
+                        className={`flex-1 text-center text-[11px] font-medium py-2 rounded-md border transition-all ${
+                          isOff
+                            ? 'bg-destructive/10 text-destructive border-destructive/30'
+                            : 'bg-muted text-muted-foreground border-border hover:border-primary/50'
+                        }`}
+                      >
+                        {DAY_LABELS[day]}
+                      </button>
                     );
                   })}
                 </div>
