@@ -138,21 +138,29 @@ export default function EmployeesPage() {
                 ) : null;
               })}
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1 mb-2">
               {DAYS_OF_WEEK.map(d => {
                 const avail = emp.availability[d]?.length > 0;
+                const off = emp.timeOff.some(to => to.day === d);
                 return (
                   <div
                     key={d}
                     className={`flex-1 text-center text-[10px] font-medium py-1 rounded ${
-                      avail ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+                      off ? 'bg-destructive/10 text-destructive' : avail ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
                     }`}
+                    title={off ? 'Time off' : avail ? 'Available' : 'Unavailable'}
                   >
                     {DAY_LABELS[d][0]}
                   </div>
                 );
               })}
             </div>
+            {emp.timeOff.length > 0 && (
+              <div className="flex items-center gap-1 text-[10px] text-destructive">
+                <CalendarOff className="w-3 h-3" />
+                {emp.timeOff.length} day(s) off
+              </div>
+            )}
           </div>
         ))}
       </div>
