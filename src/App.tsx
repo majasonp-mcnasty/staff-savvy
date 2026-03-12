@@ -10,6 +10,7 @@ import EmployeesPage from "./pages/EmployeesPage";
 import StationsPage from "./pages/StationsPage";
 import SchedulePage from "./pages/SchedulePage";
 import SettingsPage from "./pages/SettingsPage";
+import ForecastDataPage from "./pages/ForecastDataPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
