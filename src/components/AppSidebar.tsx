@@ -1,11 +1,12 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Users, LayoutGrid, Calendar, BarChart3, Settings, Zap } from 'lucide-react';
+import { Users, LayoutGrid, Calendar, BarChart3, Settings, Zap, TrendingUp } from 'lucide-react';
 
 const navItems = [
   { to: '/', icon: BarChart3, label: 'Dashboard' },
   { to: '/employees', icon: Users, label: 'Employees' },
   { to: '/stations', icon: LayoutGrid, label: 'Stations' },
   { to: '/schedule', icon: Calendar, label: 'Schedule' },
+  { to: '/forecast-data', icon: TrendingUp, label: 'Forecast Data' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 

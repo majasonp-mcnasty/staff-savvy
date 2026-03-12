@@ -29,6 +29,7 @@ const App = () => (
               <Route path="/stations" element={<StationsPage />} />
               <Route path="/schedule" element={<SchedulePage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/forecast-data" element={<ForecastDataPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
