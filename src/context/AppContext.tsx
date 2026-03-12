@@ -22,6 +22,7 @@ interface AppState {
   setStations: React.Dispatch<React.SetStateAction<Station[]>>;
   setRequirements: React.Dispatch<React.SetStateAction<CoverageRequirement[]>>;
   setBudget: React.Dispatch<React.SetStateAction<BudgetSettings>>;
+  setSchedule: React.Dispatch<React.SetStateAction<ScheduleResult | null>>;
   setScoringWeights: React.Dispatch<React.SetStateAction<ScoringWeights>>;
   setForecastWeights: React.Dispatch<React.SetStateAction<ForecastWeights>>;
   setForecastInputs: React.Dispatch<React.SetStateAction<ForecastInputs>>;
@@ -56,7 +57,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppContext.Provider value={{
       employees, stations, requirements, budget, schedule,
       scoringWeights, forecastWeights, forecastInputs, useDemandForecast,
-      setEmployees, setStations, setRequirements, setBudget,
+      setEmployees, setStations, setRequirements, setBudget, setSchedule,
       setScoringWeights, setForecastWeights, setForecastInputs, setUseDemandForecast,
       generateNewSchedule,
     }}>
