@@ -1,15 +1,17 @@
 import {
   Employee, Station, CoverageRequirement, ScheduleResult, ScheduleShift,
   BudgetSettings, DayOfWeek, DAYS_OF_WEEK, timeToMinutes, shiftDurationHours,
-  TimeWindow
+  TimeWindow, ScoringWeights, LaborSummary, ForecastInputs, DemandForecastEntry,
 } from './types';
+import { calculateEmployeeScore, DEFAULT_SCORING_WEIGHTS } from './scoring-engine';
+import { generateDemandForecast, getDefaultForecastInputs, DEFAULT_FORECAST_WEIGHTS } from './demand-forecast';
+import type { ForecastWeights } from './types';
 
 const SENIORITY_RANK: Record<string, number> = { junior: 1, mid: 2, senior: 3 };
 
 const DAY_INDEX: Record<DayOfWeek, number> = {
   monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6,
 };
-
 
 function overlaps(a: TimeWindow, b: TimeWindow): boolean {
   return timeToMinutes(a.start) < timeToMinutes(b.end) && timeToMinutes(b.start) < timeToMinutes(a.end);
@@ -43,13 +45,11 @@ function hasRestViolation(shifts: ScheduleShift[], employeeId: string, day: DayO
   for (const s of shifts) {
     if (s.employeeId !== employeeId) continue;
     const sDayIdx = DAY_INDEX[s.day];
-    // Previous day: check gap between end of prev shift and start of this shift
     if (sDayIdx === dayIdx - 1 || (dayIdx === 0 && sDayIdx === 6)) {
       const prevEnd = timeToMinutes(s.timeWindow.end);
       const gap = (24 * 60 - prevEnd) + shiftStart;
       if (gap < minRestMinutes) return true;
     }
-    // Next day: check gap between end of this shift and start of next shift
     if (sDayIdx === dayIdx + 1 || (dayIdx === 6 && sDayIdx === 0)) {
       const nextStart = timeToMinutes(s.timeWindow.start);
       const gap = (24 * 60 - shiftEnd) + nextStart;
@@ -77,18 +77,37 @@ function calculateShiftCost(hours: number, wage: number, currentWeeklyHours: num
   return regularHoursLeft * wage + (hours - regularHoursLeft) * wage * budget.overtimeMultiplier;
 }
 
+export interface ScheduleOptions {
+  scoringWeights?: ScoringWeights;
+  forecastWeights?: ForecastWeights;
+  forecastInputs?: ForecastInputs;
+  useDemandForecast?: boolean;
+}
+
 export function generateSchedule(
   employees: Employee[],
   stations: Station[],
   requirements: CoverageRequirement[],
-  budget: BudgetSettings
+  budget: BudgetSettings,
+  options: ScheduleOptions = {},
 ): ScheduleResult {
   const shifts: ScheduleShift[] = [];
   const overtimeWarnings: string[] = [];
   const understaffedAlerts: string[] = [];
+  const weights = options.scoringWeights || DEFAULT_SCORING_WEIGHTS;
+  const forecastWeights = options.forecastWeights || DEFAULT_FORECAST_WEIGHTS;
+  const forecastInputs = options.forecastInputs || getDefaultForecastInputs();
 
-  // Sort requirements: critical stations first, then by required count desc
-  const sortedReqs = [...requirements].sort((a, b) => {
+  // Generate demand forecast
+  const demandForecast = generateDemandForecast(requirements, forecastInputs, forecastWeights);
+
+  // Adjust requirements based on demand forecast if enabled
+  const adjustedReqs = (options.useDemandForecast !== false)
+    ? adjustRequirementsForDemand(requirements, demandForecast)
+    : [...requirements];
+
+  // Sort: critical stations first, then by required count desc
+  const sortedReqs = adjustedReqs.sort((a, b) => {
     const stA = stations.find(s => s.id === a.stationId);
     const stB = stations.find(s => s.id === b.stationId);
     if (stA?.isCritical && !stB?.isCritical) return -1;
@@ -96,65 +115,36 @@ export function generateSchedule(
     return b.requiredCount - a.requiredCount;
   });
 
-  for (const req of sortedReqs) {
+  // Process day-by-day, specialized roles first (as per spec)
+  const reqsByDay = DAYS_OF_WEEK.map(day =>
+    sortedReqs.filter(r => r.day === day)
+  );
+
+  for (const dayReqs of reqsByDay) {
+    // Separate specialized (has minSeniority or critical station) from general
+    const specialized = dayReqs.filter(r => {
+      const st = stations.find(s => s.id === r.stationId);
+      return r.minSeniorityLevel || st?.isCritical;
+    });
+    const general = dayReqs.filter(r => {
+      const st = stations.find(s => s.id === r.stationId);
+      return !r.minSeniorityLevel && !st?.isCritical;
+    });
+
+    // Assign specialized first, then general
+    for (const req of [...specialized, ...general]) {
+      assignShifts(req, employees, stations, shifts, budget, weights);
+    }
+  }
+
+  // Check for unfilled requirements
+  for (const req of adjustedReqs) {
     const station = stations.find(s => s.id === req.stationId);
     if (!station) continue;
-
-    let assigned = 0;
-
-    // Find eligible employees sorted by cost-effectiveness
-    const eligible = employees
-      .filter(emp => {
-        if (!emp.qualifiedStations.includes(req.stationId)) return false;
-        if (req.minSeniorityLevel && SENIORITY_RANK[emp.seniorityLevel] < SENIORITY_RANK[req.minSeniorityLevel]) return false;
-        // Check time-off
-        if (emp.timeOff.some(to => to.day === req.day)) return false;
-        // Check availability
-        const dayAvail = emp.availability[req.day] || [];
-        return dayAvail.some(tw => overlaps(tw, req.timeWindow));
-      })
-      .map(emp => {
-        const currentHours = totalEmployeeHours(shifts, emp.id);
-        const dayAvail = emp.availability[req.day] || [];
-        const bestWindow = dayAvail
-          .map(tw => intersection(tw, req.timeWindow))
-          .filter(Boolean)
-          .sort((a, b) => shiftDurationHours(b!) - shiftDurationHours(a!))[0];
-        const shiftHours = bestWindow ? shiftDurationHours(bestWindow) : 0;
-        const cost = calculateShiftCost(shiftHours, emp.hourlyWage, currentHours, budget);
-
-        return { emp, shiftHours, cost, currentHours, window: bestWindow };
-      })
-      .filter(x => {
-        if (!x.window) return false;
-        if (x.shiftHours < 1) return false; // avoid fragmented shifts < 1hr
-        if (x.currentHours + x.shiftHours > x.emp.maxWeeklyHours) return false;
-        if (employeeHasConflict(shifts, x.emp.id, req.day, x.window)) return false;
-        if (hasRestViolation(shifts, x.emp.id, req.day, x.window, budget.minRestHours)) return false;
-        return true;
-      })
-      .sort((a, b) => {
-        // For critical stations, prefer higher-rated employees
-        if (station.isCritical) {
-          const ratingDiff = b.emp.performanceRating - a.emp.performanceRating;
-          if (ratingDiff !== 0) return ratingDiff;
-        }
-        // Then sort by cost (ascending)
-        return a.cost - b.cost;
-      });
-
-    for (const candidate of eligible) {
-      if (assigned >= req.requiredCount) break;
-
-      shifts.push({
-        employeeId: candidate.emp.id,
-        stationId: req.stationId,
-        day: req.day,
-        timeWindow: candidate.window!,
-      });
-      assigned++;
-    }
-
+    const assigned = shifts.filter(s =>
+      s.stationId === req.stationId && s.day === req.day &&
+      overlaps(s.timeWindow, req.timeWindow)
+    ).length;
     if (assigned < req.requiredCount) {
       understaffedAlerts.push(
         `${station.name} on ${req.day} (${req.timeWindow.start}-${req.timeWindow.end}): need ${req.requiredCount}, assigned ${assigned}`
@@ -162,14 +152,14 @@ export function generateSchedule(
     }
   }
 
-  // Calculate costs and check overtime
+  // Calculate costs and labor summary
   const hoursPerEmployee: Record<string, number> = {};
   const costPerDay: Record<DayOfWeek, number> = {} as any;
   let totalCost = 0;
+  let regularCost = 0;
+  let overtimeCost = 0;
 
-  for (const day of DAYS_OF_WEEK) {
-    costPerDay[day] = 0;
-  }
+  for (const day of DAYS_OF_WEEK) costPerDay[day] = 0;
 
   for (const emp of employees) {
     hoursPerEmployee[emp.id] = totalEmployeeHours(shifts, emp.id);
@@ -181,15 +171,29 @@ export function generateSchedule(
   }
 
   for (const shift of shifts) {
-    const emp = employees.find(e => e.id === shift.employeeId);
-    if (!emp) continue;
-    const hours = shiftDurationHours(shift.timeWindow);
-    const cost = hours * emp.hourlyWage; // simplified for display
-    costPerDay[shift.day] += cost;
-    totalCost += cost;
+    costPerDay[shift.day] += shift.shiftCost;
+    totalCost += shift.shiftCost;
   }
 
-  // Budget warnings
+  // Separate regular vs overtime cost
+  for (const emp of employees) {
+    const empHours = hoursPerEmployee[emp.id] || 0;
+    const regHours = Math.min(empHours, budget.overtimeThreshold);
+    const otHours = Math.max(0, empHours - budget.overtimeThreshold);
+    regularCost += regHours * emp.hourlyWage;
+    overtimeCost += otHours * emp.hourlyWage * budget.overtimeMultiplier;
+  }
+
+  const laborSummary: LaborSummary = {
+    totalLaborCost: totalCost,
+    laborBudget: budget.weeklyBudgetCap,
+    budgetStatus: budget.weeklyBudgetCap
+      ? (totalCost <= budget.weeklyBudgetCap ? 'within_budget' : 'over_budget')
+      : 'no_budget',
+    overtimeCost,
+    regularCost,
+  };
+
   if (budget.weeklyBudgetCap && totalCost > budget.weeklyBudgetCap) {
     overtimeWarnings.unshift(
       `⚠️ Total cost $${totalCost.toFixed(2)} exceeds budget cap $${budget.weeklyBudgetCap.toFixed(2)}`
@@ -204,5 +208,100 @@ export function generateSchedule(
     overtimeWarnings,
     understaffedAlerts,
     generatedAt: new Date().toISOString(),
+    laborSummary,
+    demandForecast,
   };
+}
+
+function assignShifts(
+  req: CoverageRequirement,
+  employees: Employee[],
+  stations: Station[],
+  shifts: ScheduleShift[],
+  budget: BudgetSettings,
+  weights: ScoringWeights,
+) {
+  const station = stations.find(s => s.id === req.stationId);
+  if (!station) return;
+
+  // Count already-assigned for this requirement
+  const alreadyAssigned = shifts.filter(s =>
+    s.stationId === req.stationId && s.day === req.day &&
+    overlaps(s.timeWindow, req.timeWindow)
+  ).length;
+  let needed = req.requiredCount - alreadyAssigned;
+  if (needed <= 0) return;
+
+  const eligible = employees
+    .filter(emp => {
+      if (!emp.qualifiedStations.includes(req.stationId)) return false;
+      if (req.minSeniorityLevel && SENIORITY_RANK[emp.seniorityLevel] < SENIORITY_RANK[req.minSeniorityLevel]) return false;
+      if ((emp.timeOff || []).some(to => to.day === req.day)) return false;
+      // Check certification requirements
+      if (station.requiredCertifications?.length) {
+        const empCerts = emp.certifications || [];
+        if (!station.requiredCertifications.every(c => empCerts.includes(c))) return false;
+      }
+      const dayAvail = emp.availability[req.day] || [];
+      return dayAvail.some(tw => overlaps(tw, req.timeWindow));
+    })
+    .map(emp => {
+      const currentHours = totalEmployeeHours(shifts, emp.id);
+      const dayAvail = emp.availability[req.day] || [];
+      const bestWindow = dayAvail
+        .map(tw => intersection(tw, req.timeWindow))
+        .filter(Boolean)
+        .sort((a, b) => shiftDurationHours(b!) - shiftDurationHours(a!))[0];
+      const shiftHours = bestWindow ? shiftDurationHours(bestWindow) : 0;
+      const cost = calculateShiftCost(shiftHours, emp.hourlyWage, currentHours, budget);
+      const score = calculateEmployeeScore(emp, req.timeWindow, shiftHours, shiftDurationHours(req.timeWindow), currentHours, weights);
+
+      return { emp, shiftHours, cost, currentHours, window: bestWindow, score };
+    })
+    .filter(x => {
+      if (!x.window) return false;
+      if (x.shiftHours < 1) return false;
+      if (x.currentHours + x.shiftHours > x.emp.maxWeeklyHours) return false;
+      if (employeeHasConflict(shifts, x.emp.id, req.day, x.window)) return false;
+      if (hasRestViolation(shifts, x.emp.id, req.day, x.window, budget.minRestHours)) return false;
+      return true;
+    })
+    // Sort by composite score (highest first), then by cost (lowest) as tiebreaker
+    .sort((a, b) => {
+      const scoreDiff = b.score.total - a.score.total;
+      if (Math.abs(scoreDiff) > 5) return scoreDiff;
+      return a.cost - b.cost;
+    });
+
+  for (const candidate of eligible) {
+    if (needed <= 0) break;
+    shifts.push({
+      employeeId: candidate.emp.id,
+      stationId: req.stationId,
+      day: req.day,
+      timeWindow: candidate.window!,
+      shiftCost: candidate.cost,
+      score: candidate.score,
+    });
+    needed--;
+  }
+}
+
+/**
+ * Adjust coverage requirements based on demand forecast multipliers.
+ */
+function adjustRequirementsForDemand(
+  requirements: CoverageRequirement[],
+  forecast: DemandForecastEntry[],
+): CoverageRequirement[] {
+  return requirements.map(req => {
+    const entry = forecast.find(f =>
+      f.day === req.day && f.shift === `${req.timeWindow.start}-${req.timeWindow.end}`
+    );
+    if (!entry || entry.staffingMultiplier <= 1) return req;
+    return {
+      ...req,
+      requiredCount: Math.ceil(req.requiredCount * entry.staffingMultiplier),
+    };
+  });
 }
