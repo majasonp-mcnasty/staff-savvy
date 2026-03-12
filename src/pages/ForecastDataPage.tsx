@@ -57,7 +57,6 @@ export default function ForecastDataPage() {
   };
 
   const resetToDefaults = () => {
-    const { getDefaultForecastInputs } = require('@/lib/demand-forecast');
     setForecastInputs(getDefaultForecastInputs());
     toast.success('Forecast data reset to defaults');
   };
