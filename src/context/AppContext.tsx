@@ -57,7 +57,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppContext.Provider value={{
       employees, stations, requirements, budget, schedule,
       scoringWeights, forecastWeights, forecastInputs, useDemandForecast,
-      setEmployees, setStations, setRequirements, setBudget,
+      setEmployees, setStations, setRequirements, setBudget, setSchedule,
       setScoringWeights, setForecastWeights, setForecastInputs, setUseDemandForecast,
       generateNewSchedule,
     }}>
