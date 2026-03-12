@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DayOfWeek, DAYS_OF_WEEK, DAY_FULL_LABELS, HistoricalSalesData, EventData, WeatherData } from '@/lib/types';
+import { getDefaultForecastInputs } from '@/lib/demand-forecast';
 import { TrendingUp, Cloud, CalendarHeart, Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
