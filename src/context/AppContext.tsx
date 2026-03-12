@@ -22,6 +22,7 @@ interface AppState {
   setStations: React.Dispatch<React.SetStateAction<Station[]>>;
   setRequirements: React.Dispatch<React.SetStateAction<CoverageRequirement[]>>;
   setBudget: React.Dispatch<React.SetStateAction<BudgetSettings>>;
+  setSchedule: React.Dispatch<React.SetStateAction<ScheduleResult | null>>;
   setScoringWeights: React.Dispatch<React.SetStateAction<ScoringWeights>>;
   setForecastWeights: React.Dispatch<React.SetStateAction<ForecastWeights>>;
   setForecastInputs: React.Dispatch<React.SetStateAction<ForecastInputs>>;
