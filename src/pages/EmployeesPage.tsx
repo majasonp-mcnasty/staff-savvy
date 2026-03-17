@@ -58,10 +58,19 @@ export default function EmployeesPage() {
     setEditing({ ...emp, availability: { ...emp.availability }, certifications: [...(emp.certifications || [])], timeOff: [...(emp.timeOff || [])] });
     setIsNew(false);
   }
+  function openEdit(emp: Employee) {
+    setEditing({ ...emp, availability: { ...emp.availability }, certifications: [...(emp.certifications || [])], timeOff: [...(emp.timeOff || [])] });
+    setIsNew(false);
+    setRatingError(null);
+  }
   function save() {
     if (!editing || !editing.name.trim()) return;
-    setEmployees(prev => isNew ? [...prev, editing] : prev.map(e => e.id === editing.id ? editing : e));
+    const error = validateRating(editing.performanceRating);
+    if (error) { setRatingError(error); return; }
+    const normalized = { ...editing, performanceRating: Math.round(editing.performanceRating * 10) / 10 };
+    setEmployees(prev => isNew ? [...prev, normalized] : prev.map(e => e.id === normalized.id ? normalized : e));
     setEditing(null);
+    setRatingError(null);
   }
   function remove(id: string) { setEmployees(prev => prev.filter(e => e.id !== id)); }
 
