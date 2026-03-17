@@ -4,7 +4,7 @@ import {
 } from './types';
 
 const SENIORITY_EXPERIENCE: Record<string, number> = { junior: 60, mid: 80, senior: 100 };
-const RATING_BONUS: Record<number, number> = { 1: 0, 2: 5, 3: 10, 4: 15, 5: 20 };
+const RATING_BONUS_PER_POINT = 5; // 5 points per rating point, linear scale
 
 export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
   availability: 0.40,
@@ -31,7 +31,7 @@ function availabilityScore(overlapHours: number, shiftHours: number): number {
  */
 function experienceScore(emp: Employee): number {
   const base = SENIORITY_EXPERIENCE[emp.seniorityLevel] || 60;
-  const bonus = RATING_BONUS[emp.performanceRating] || 0;
+  const bonus = (emp.performanceRating - 1) * RATING_BONUS_PER_POINT; // 0 at 1.0, 20 at 5.0
   return Math.min(100, base + bonus);
 }
 

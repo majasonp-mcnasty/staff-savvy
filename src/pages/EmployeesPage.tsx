@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAppState } from '@/context/AppContext';
 import { Employee, DayOfWeek, DAYS_OF_WEEK, DAY_LABELS, generateId, TimeWindow, ShiftPreference } from '@/lib/types';
-import { Plus, Pencil, Trash2, X, Check, Star, CalendarOff, Award } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Check, Star, CalendarOff, Award, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,16 +30,44 @@ export default function EmployeesPage() {
   const [editing, setEditing] = useState<Employee | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [certInput, setCertInput] = useState('');
+  const [ratingError, setRatingError] = useState<string | null>(null);
 
-  function openNew() { setEditing(newEmployee()); setIsNew(true); }
+  function validateRating(value: number): string | null {
+    if (isNaN(value)) return 'Enter a value between 1.0 and 5.0 (max 1 decimal place)';
+    if (value < 1 || value > 5) return 'Enter a value between 1.0 and 5.0 (max 1 decimal place)';
+    const decimalPart = value.toString().split('.')[1];
+    if (decimalPart && decimalPart.length > 1) return 'Enter a value between 1.0 and 5.0 (max 1 decimal place)';
+    return null;
+  }
+
+  function handleRatingChange(rawValue: string) {
+    if (!editing) return;
+    if (rawValue === '') { setEditing({ ...editing, performanceRating: 1 }); setRatingError(null); return; }
+    const num = parseFloat(rawValue);
+    const error = validateRating(num);
+    setRatingError(error);
+    if (!error) {
+      setEditing({ ...editing, performanceRating: Math.round(num * 10) / 10 });
+    } else {
+      setEditing({ ...editing, performanceRating: num });
+    }
+  }
+
+  function openNew() { setEditing(newEmployee()); setIsNew(true); setRatingError(null); }
+  
   function openEdit(emp: Employee) {
     setEditing({ ...emp, availability: { ...emp.availability }, certifications: [...(emp.certifications || [])], timeOff: [...(emp.timeOff || [])] });
     setIsNew(false);
+    setRatingError(null);
   }
   function save() {
     if (!editing || !editing.name.trim()) return;
-    setEmployees(prev => isNew ? [...prev, editing] : prev.map(e => e.id === editing.id ? editing : e));
+    const error = validateRating(editing.performanceRating);
+    if (error) { setRatingError(error); return; }
+    const normalized = { ...editing, performanceRating: Math.round(editing.performanceRating * 10) / 10 };
+    setEmployees(prev => isNew ? [...prev, normalized] : prev.map(e => e.id === normalized.id ? normalized : e));
     setEditing(null);
+    setRatingError(null);
   }
   function remove(id: string) { setEmployees(prev => prev.filter(e => e.id !== id)); }
 
@@ -105,10 +133,14 @@ export default function EmployeesPage() {
               </div>
             </div>
             <div className="flex items-center gap-1 mb-3">
-              {[1, 2, 3, 4, 5].map(s => (
-                <Star key={s} className={`w-3 h-3 ${s <= emp.performanceRating ? 'fill-warning text-warning' : 'text-muted'}`} />
-              ))}
-              <span className="text-xs text-muted-foreground ml-1">Max {emp.maxWeeklyHours}h/wk</span>
+              {[1, 2, 3, 4, 5].map(s => {
+                const filled = emp.performanceRating >= s;
+                const half = !filled && emp.performanceRating >= s - 0.5;
+                return (
+                  <Star key={s} className={`w-3 h-3 ${filled ? 'fill-warning text-warning' : half ? 'fill-warning/50 text-warning' : 'text-muted'}`} />
+                );
+              })}
+              <span className="text-xs text-muted-foreground ml-1">{emp.performanceRating.toFixed(1)} · Max {emp.maxWeeklyHours}h/wk</span>
             </div>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {emp.qualifiedStations.map(sid => {
@@ -170,7 +202,21 @@ export default function EmployeesPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>Rating (1-5)</Label><Input type="number" min={1} max={5} value={editing.performanceRating} onChange={e => setEditing({ ...editing, performanceRating: Math.min(5, Math.max(1, +e.target.value)) })} /></div>
+                <div>
+                  <Label>Rating (1.0-5.0)</Label>
+                  <Input
+                    type="number"
+                    min={1} max={5} step={0.1}
+                    value={editing.performanceRating}
+                    onChange={e => handleRatingChange(e.target.value)}
+                    className={ratingError ? 'border-destructive' : ''}
+                  />
+                  {ratingError && (
+                    <p className="text-[10px] text-destructive mt-0.5 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />{ratingError}
+                    </p>
+                  )}
+                </div>
                 <div>
                   <Label>Shift Pref</Label>
                   <Select value={editing.shiftPreference || 'any'} onValueChange={v => setEditing({ ...editing, shiftPreference: v as ShiftPreference })}>
