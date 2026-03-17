@@ -6,6 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useDraftState } from '@/hooks/use-draft-state';
+import { useUnsavedWarning } from '@/hooks/use-unsaved-warning';
+import UnsavedChangesBar from '@/components/UnsavedChangesBar';
 
 const EMPTY_AVAILABILITY: Record<DayOfWeek, TimeWindow[]> = {
   monday: [], tuesday: [], wednesday: [], thursday: [],
@@ -27,10 +30,24 @@ function newEmployee(): Employee {
 
 export default function EmployeesPage() {
   const { employees, setEmployees, stations } = useAppState();
+
+  const { draft, setDraft, isDirty, discard } = useDraftState(employees);
+  useUnsavedWarning(isDirty);
+
   const [editing, setEditing] = useState<Employee | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [certInput, setCertInput] = useState('');
   const [ratingError, setRatingError] = useState<string | null>(null);
+
+  const handleSave = () => {
+    // Validate all employees
+    for (const emp of draft) {
+      if (!emp.name.trim()) return false;
+      const error = validateRating(emp.performanceRating);
+      if (error) return false;
+    }
+    setEmployees(draft);
+  };
 
   function validateRating(value: number): string | null {
     if (isNaN(value)) return 'Enter a value between 1.0 and 5.0 (max 1 decimal place)';
@@ -54,22 +71,24 @@ export default function EmployeesPage() {
   }
 
   function openNew() { setEditing(newEmployee()); setIsNew(true); setRatingError(null); }
-  
+
   function openEdit(emp: Employee) {
     setEditing({ ...emp, availability: { ...emp.availability }, certifications: [...(emp.certifications || [])], timeOff: [...(emp.timeOff || [])] });
     setIsNew(false);
     setRatingError(null);
   }
-  function save() {
+
+  function saveDialog() {
     if (!editing || !editing.name.trim()) return;
     const error = validateRating(editing.performanceRating);
     if (error) { setRatingError(error); return; }
     const normalized = { ...editing, performanceRating: Math.round(editing.performanceRating * 10) / 10 };
-    setEmployees(prev => isNew ? [...prev, normalized] : prev.map(e => e.id === normalized.id ? normalized : e));
+    setDraft(prev => isNew ? [...prev, normalized] : prev.map(e => e.id === normalized.id ? normalized : e));
     setEditing(null);
     setRatingError(null);
   }
-  function remove(id: string) { setEmployees(prev => prev.filter(e => e.id !== id)); }
+
+  function remove(id: string) { setDraft(prev => prev.filter(e => e.id !== id)); }
 
   function toggleStation(stationId: string) {
     if (!editing) return;
@@ -108,11 +127,11 @@ export default function EmployeesPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-20">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Employees</h1>
-          <p className="text-sm text-muted-foreground mt-1">{employees.length} team members</p>
+          <p className="text-sm text-muted-foreground mt-1">{draft.length} team members</p>
         </div>
         <button onClick={openNew} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity">
           <Plus className="w-4 h-4" /> Add Employee
@@ -120,7 +139,7 @@ export default function EmployeesPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {employees.map(emp => (
+        {draft.map(emp => (
           <div key={emp.id} className="stat-card group">
             <div className="flex items-start justify-between mb-3">
               <div>
@@ -294,13 +313,15 @@ export default function EmployeesPage() {
               </div>
 
               <div className="flex gap-2 pt-2">
-                <button onClick={save} className="flex-1 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity">{isNew ? 'Add Employee' : 'Save Changes'}</button>
+                <button onClick={saveDialog} className="flex-1 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity">{isNew ? 'Add Employee' : 'Save Changes'}</button>
                 <button onClick={() => setEditing(null)} className="px-4 py-2.5 rounded-lg bg-muted text-muted-foreground font-medium text-sm hover:bg-muted/80 transition-colors">Cancel</button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      <UnsavedChangesBar isDirty={isDirty} onSave={handleSave} onDiscard={discard} />
     </div>
   );
 }

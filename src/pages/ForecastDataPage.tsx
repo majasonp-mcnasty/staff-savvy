@@ -1,16 +1,26 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAppState } from '@/context/AppContext';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DayOfWeek, DAYS_OF_WEEK, DAY_FULL_LABELS, HistoricalSalesData, EventData, WeatherData } from '@/lib/types';
+import { DayOfWeek, DAYS_OF_WEEK, DAY_FULL_LABELS, HistoricalSalesData, EventData, ForecastInputs } from '@/lib/types';
 import { getDefaultForecastInputs } from '@/lib/demand-forecast';
 import { TrendingUp, Cloud, CalendarHeart, Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import { useDraftState } from '@/hooks/use-draft-state';
+import { useUnsavedWarning } from '@/hooks/use-unsaved-warning';
+import UnsavedChangesBar from '@/components/UnsavedChangesBar';
 
 export default function ForecastDataPage() {
   const { forecastInputs, setForecastInputs } = useAppState();
+
+  const { draft, setDraft, isDirty, discard } = useDraftState(forecastInputs);
+  useUnsavedWarning(isDirty);
+
+  const handleSave = () => {
+    setForecastInputs(draft);
+  };
 
   // --- Historical Sales ---
   const [salesDay, setSalesDay] = useState<DayOfWeek>('monday');
@@ -19,12 +29,11 @@ export default function ForecastDataPage() {
 
   const addSalesEntry = () => {
     const entry: HistoricalSalesData = { day: salesDay, hour: salesHour, revenue: salesRevenue };
-    setForecastInputs(prev => ({ ...prev, historicalSales: [...prev.historicalSales, entry] }));
-    toast.success('Sales entry added');
+    setDraft(prev => ({ ...prev, historicalSales: [...prev.historicalSales, entry] }));
   };
 
   const removeSalesEntry = (idx: number) => {
-    setForecastInputs(prev => ({
+    setDraft(prev => ({
       ...prev,
       historicalSales: prev.historicalSales.filter((_, i) => i !== idx),
     }));
@@ -37,12 +46,11 @@ export default function ForecastDataPage() {
 
   const addEventEntry = () => {
     const entry: EventData = { day: eventDay, eventType, expectedAttendance: eventAttendance };
-    setForecastInputs(prev => ({ ...prev, events: [...prev.events, entry] }));
-    toast.success('Event added');
+    setDraft(prev => ({ ...prev, events: [...prev.events, entry] }));
   };
 
   const removeEventEntry = (idx: number) => {
-    setForecastInputs(prev => ({
+    setDraft(prev => ({
       ...prev,
       events: prev.events.filter((_, i) => i !== idx),
     }));
@@ -50,19 +58,18 @@ export default function ForecastDataPage() {
 
   // --- Weather ---
   const updateWeather = (day: DayOfWeek, field: 'temperature' | 'rainProbability', value: number) => {
-    setForecastInputs(prev => ({
+    setDraft(prev => ({
       ...prev,
       weather: prev.weather.map(w => w.day === day ? { ...w, [field]: value } : w),
     }));
   };
 
   const resetToDefaults = () => {
-    setForecastInputs(getDefaultForecastInputs());
-    toast.success('Forecast data reset to defaults');
+    setDraft(getDefaultForecastInputs());
   };
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-3xl">
+    <div className="space-y-6 animate-fade-in max-w-3xl pb-20">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Forecast Data</h1>
@@ -81,11 +88,10 @@ export default function ForecastDataPage() {
           <TrendingUp className="w-4 h-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold text-foreground">Historical Sales</h2>
           <span className="ml-auto text-xs text-muted-foreground">
-            {forecastInputs.historicalSales.length} entries
+            {draft.historicalSales.length} entries
           </span>
         </div>
 
-        {/* Add form */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
           <div>
             <Label className="text-xs">Day</Label>
@@ -113,8 +119,7 @@ export default function ForecastDataPage() {
           </Button>
         </div>
 
-        {/* Table */}
-        {forecastInputs.historicalSales.length > 0 && (
+        {draft.historicalSales.length > 0 && (
           <div className="max-h-48 overflow-y-auto border border-border rounded-md">
             <table className="w-full text-xs">
               <thead className="bg-muted sticky top-0">
@@ -126,7 +131,7 @@ export default function ForecastDataPage() {
                 </tr>
               </thead>
               <tbody>
-                {forecastInputs.historicalSales.map((s, i) => (
+                {draft.historicalSales.map((s, i) => (
                   <tr key={i} className="border-t border-border">
                     <td className="px-3 py-1.5 text-foreground">{DAY_FULL_LABELS[s.day]}</td>
                     <td className="px-3 py-1.5 text-foreground">{s.hour}:00</td>
@@ -151,7 +156,7 @@ export default function ForecastDataPage() {
           <CalendarHeart className="w-4 h-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold text-foreground">Local Events</h2>
           <span className="ml-auto text-xs text-muted-foreground">
-            {forecastInputs.events.length} events
+            {draft.events.length} events
           </span>
         </div>
 
@@ -188,7 +193,7 @@ export default function ForecastDataPage() {
           </Button>
         </div>
 
-        {forecastInputs.events.length > 0 && (
+        {draft.events.length > 0 && (
           <div className="max-h-48 overflow-y-auto border border-border rounded-md">
             <table className="w-full text-xs">
               <thead className="bg-muted sticky top-0">
@@ -200,7 +205,7 @@ export default function ForecastDataPage() {
                 </tr>
               </thead>
               <tbody>
-                {forecastInputs.events.map((e, i) => (
+                {draft.events.map((e, i) => (
                   <tr key={i} className="border-t border-border">
                     <td className="px-3 py-1.5 text-foreground">{DAY_FULL_LABELS[e.day]}</td>
                     <td className="px-3 py-1.5 text-foreground capitalize">{e.eventType}</td>
@@ -229,7 +234,7 @@ export default function ForecastDataPage() {
 
         <div className="grid grid-cols-1 gap-2">
           {DAYS_OF_WEEK.map(day => {
-            const w = forecastInputs.weather.find(x => x.day === day) || { temperature: 22, rainProbability: 20 };
+            const w = draft.weather.find(x => x.day === day) || { temperature: 22, rainProbability: 20 };
             return (
               <div key={day} className="grid grid-cols-3 gap-3 items-center py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors">
                 <span className="text-xs font-medium text-foreground">{DAY_FULL_LABELS[day]}</span>
@@ -250,6 +255,8 @@ export default function ForecastDataPage() {
           })}
         </div>
       </div>
+
+      <UnsavedChangesBar isDirty={isDirty} onSave={handleSave} onDiscard={discard} />
     </div>
   );
 }

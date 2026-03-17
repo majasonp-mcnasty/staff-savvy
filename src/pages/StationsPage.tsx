@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAppState } from '@/context/AppContext';
 import { Station, CoverageRequirement, generateId, DAYS_OF_WEEK, DAY_LABELS, DayOfWeek } from '@/lib/types';
-import { Plus, Pencil, Trash2, Shield, LayoutGrid } from 'lucide-react';
+import { Plus, Pencil, Trash2, Shield } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { useDraftState } from '@/hooks/use-draft-state';
+import { useUnsavedWarning } from '@/hooks/use-unsaved-warning';
+import UnsavedChangesBar from '@/components/UnsavedChangesBar';
 
 const COLORS = [
   'hsl(215, 90%, 42%)', 'hsl(172, 66%, 40%)', 'hsl(38, 92%, 50%)',
@@ -14,61 +17,78 @@ const COLORS = [
 
 export default function StationsPage() {
   const { stations, setStations, requirements, setRequirements, employees } = useAppState();
+
+  const savedSnapshot = useMemo(() => ({ stations, requirements }), [stations, requirements]);
+  const { draft, setDraft, isDirty, discard } = useDraftState(savedSnapshot);
+  useUnsavedWarning(isDirty);
+
   const [editStation, setEditStation] = useState<Station | null>(null);
   const [isNewStation, setIsNewStation] = useState(false);
   const [editReq, setEditReq] = useState<CoverageRequirement | null>(null);
   const [isNewReq, setIsNewReq] = useState(false);
 
+  const handleSave = () => {
+    setStations(draft.stations);
+    setRequirements(draft.requirements);
+  };
+
   function saveStation() {
     if (!editStation || !editStation.name.trim()) return;
-    setStations(prev =>
-      isNewStation ? [...prev, editStation] : prev.map(s => s.id === editStation.id ? editStation : s)
-    );
+    setDraft(prev => ({
+      ...prev,
+      stations: isNewStation ? [...prev.stations, editStation] : prev.stations.map(s => s.id === editStation.id ? editStation : s),
+    }));
     setEditStation(null);
   }
 
   function removeStation(id: string) {
-    setStations(prev => prev.filter(s => s.id !== id));
-    setRequirements(prev => prev.filter(r => r.stationId !== id));
+    setDraft(prev => ({
+      ...prev,
+      stations: prev.stations.filter(s => s.id !== id),
+      requirements: prev.requirements.filter(r => r.stationId !== id),
+    }));
   }
 
   function saveReq() {
     if (!editReq) return;
-    setRequirements(prev => {
-      if (isNewReq) return [...prev, editReq];
-      return prev.map(r =>
-        r.stationId === editReq.stationId && r.day === editReq.day &&
-        r.timeWindow.start === editReq.timeWindow.start ? editReq : r
-      );
-    });
+    setDraft(prev => ({
+      ...prev,
+      requirements: isNewReq
+        ? [...prev.requirements, editReq]
+        : prev.requirements.map(r =>
+            r.stationId === editReq.stationId && r.day === editReq.day && r.timeWindow.start === editReq.timeWindow.start ? editReq : r
+          ),
+    }));
     setEditReq(null);
   }
 
   function removeReq(req: CoverageRequirement) {
-    setRequirements(prev => prev.filter(r =>
-      !(r.stationId === req.stationId && r.day === req.day && r.timeWindow.start === req.timeWindow.start)
-    ));
+    setDraft(prev => ({
+      ...prev,
+      requirements: prev.requirements.filter(r =>
+        !(r.stationId === req.stationId && r.day === req.day && r.timeWindow.start === req.timeWindow.start)
+      ),
+    }));
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-20">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Stations & Coverage</h1>
-          <p className="text-sm text-muted-foreground mt-1">{stations.length} stations · {requirements.length} coverage rules</p>
+          <p className="text-sm text-muted-foreground mt-1">{draft.stations.length} stations · {draft.requirements.length} coverage rules</p>
         </div>
         <button
-          onClick={() => { setEditStation({ id: generateId(), name: '', color: COLORS[stations.length % COLORS.length], isCritical: false }); setIsNewStation(true); }}
+          onClick={() => { setEditStation({ id: generateId(), name: '', color: COLORS[draft.stations.length % COLORS.length], isCritical: false }); setIsNewStation(true); }}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
         >
-          <Plus className="w-4 h-4" />
-          Add Station
+          <Plus className="w-4 h-4" /> Add Station
         </button>
       </div>
 
       {/* Stations */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stations.map(st => {
+        {draft.stations.map(st => {
           const qualifiedCount = employees.filter(e => e.qualifiedStations.includes(st.id)).length;
           return (
             <div key={st.id} className="stat-card group">
@@ -106,7 +126,7 @@ export default function StationsPage() {
           <button
             onClick={() => {
               setEditReq({
-                stationId: stations[0]?.id || '',
+                stationId: draft.stations[0]?.id || '',
                 day: 'monday',
                 timeWindow: { start: '08:00', end: '16:00' },
                 requiredCount: 1,
@@ -115,8 +135,7 @@ export default function StationsPage() {
             }}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-muted text-foreground font-medium text-xs hover:bg-muted/80 transition-colors"
           >
-            <Plus className="w-3 h-3" />
-            Add Requirement
+            <Plus className="w-3 h-3" /> Add Requirement
           </button>
         </div>
 
@@ -133,8 +152,8 @@ export default function StationsPage() {
               </tr>
             </thead>
             <tbody>
-              {requirements.map((req, i) => {
-                const st = stations.find(s => s.id === req.stationId);
+              {draft.requirements.map((req, i) => {
+                const st = draft.stations.find(s => s.id === req.stationId);
                 return (
                   <tr key={i} className="border-b border-border/50 last:border-0 group">
                     <td className="py-2.5 px-3">
@@ -212,7 +231,7 @@ export default function StationsPage() {
                   value={editReq.stationId}
                   onChange={e => setEditReq({ ...editReq, stationId: e.target.value })}
                 >
-                  {stations.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {draft.stations.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
               <div>
@@ -246,6 +265,8 @@ export default function StationsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <UnsavedChangesBar isDirty={isDirty} onSave={handleSave} onDiscard={discard} />
     </div>
   );
 }

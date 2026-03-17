@@ -3,6 +3,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Settings, BarChart3, Target, Brain } from 'lucide-react';
+import { useDraftState } from '@/hooks/use-draft-state';
+import { useUnsavedWarning } from '@/hooks/use-unsaved-warning';
+import UnsavedChangesBar from '@/components/UnsavedChangesBar';
+import { useMemo } from 'react';
 
 export default function SettingsPage() {
   const {
@@ -12,8 +16,34 @@ export default function SettingsPage() {
     useDemandForecast, setUseDemandForecast,
   } = useAppState();
 
+  const savedSnapshot = useMemo(() => ({
+    budget, scoringWeights, forecastWeights, useDemandForecast,
+  }), [budget, scoringWeights, forecastWeights, useDemandForecast]);
+
+  const { draft, setDraft, isDirty, discard } = useDraftState(savedSnapshot);
+
+  useUnsavedWarning(isDirty);
+
+  const handleSave = () => {
+    // Validate scoring weights sum
+    const sSum = draft.scoringWeights.availability + draft.scoringWeights.experience + draft.scoringWeights.preference + draft.scoringWeights.fairness;
+    if (Math.abs(sSum - 1) >= 0.01) {
+      return false;
+    }
+    if (draft.useDemandForecast) {
+      const fSum = draft.forecastWeights.historicalSales + draft.forecastWeights.events + draft.forecastWeights.weather + draft.forecastWeights.seasonal;
+      if (Math.abs(fSum - 1) >= 0.01) {
+        return false;
+      }
+    }
+    setBudget(draft.budget);
+    setScoringWeights(draft.scoringWeights);
+    setForecastWeights(draft.forecastWeights);
+    setUseDemandForecast(draft.useDemandForecast);
+  };
+
   return (
-    <div className="space-y-6 animate-fade-in max-w-2xl">
+    <div className="space-y-6 animate-fade-in max-w-2xl pb-20">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">Budget, scoring, and forecast configuration</p>
@@ -30,8 +60,8 @@ export default function SettingsPage() {
             <Label>Weekly Budget Cap ($)</Label>
             <Input
               type="number" min={0}
-              value={budget.weeklyBudgetCap ?? ''}
-              onChange={e => setBudget(prev => ({ ...prev, weeklyBudgetCap: e.target.value ? +e.target.value : null }))}
+              value={draft.budget.weeklyBudgetCap ?? ''}
+              onChange={e => setDraft(prev => ({ ...prev, budget: { ...prev.budget, weeklyBudgetCap: e.target.value ? +e.target.value : null } }))}
               placeholder="No cap"
             />
             <p className="text-xs text-muted-foreground mt-1">Leave empty for no cap</p>
@@ -40,16 +70,16 @@ export default function SettingsPage() {
             <Label>Overtime Threshold (hrs/wk)</Label>
             <Input
               type="number" min={1}
-              value={budget.overtimeThreshold}
-              onChange={e => setBudget(prev => ({ ...prev, overtimeThreshold: +e.target.value }))}
+              value={draft.budget.overtimeThreshold}
+              onChange={e => setDraft(prev => ({ ...prev, budget: { ...prev.budget, overtimeThreshold: +e.target.value } }))}
             />
           </div>
           <div>
             <Label>Overtime Multiplier</Label>
             <Input
               type="number" min={1} step={0.1}
-              value={budget.overtimeMultiplier}
-              onChange={e => setBudget(prev => ({ ...prev, overtimeMultiplier: +e.target.value }))}
+              value={draft.budget.overtimeMultiplier}
+              onChange={e => setDraft(prev => ({ ...prev, budget: { ...prev.budget, overtimeMultiplier: +e.target.value } }))}
             />
             <p className="text-xs text-muted-foreground mt-1">e.g., 1.5 = time and a half</p>
           </div>
@@ -57,8 +87,8 @@ export default function SettingsPage() {
             <Label>Min Rest Between Shifts (hrs)</Label>
             <Input
               type="number" min={0} max={24}
-              value={budget.minRestHours}
-              onChange={e => setBudget(prev => ({ ...prev, minRestHours: +e.target.value }))}
+              value={draft.budget.minRestHours}
+              onChange={e => setDraft(prev => ({ ...prev, budget: { ...prev.budget, minRestHours: +e.target.value } }))}
             />
           </div>
         </div>
@@ -72,33 +102,17 @@ export default function SettingsPage() {
         </div>
         <p className="text-xs text-muted-foreground -mt-3">Weights must sum to 1.0. Controls how employees are ranked for shift assignment.</p>
         <div className="grid grid-cols-2 gap-4">
-          <WeightInput
-            label="Availability"
-            value={scoringWeights.availability}
-            onChange={v => setScoringWeights(prev => ({ ...prev, availability: v }))}
-            description="Schedule overlap match"
-          />
-          <WeightInput
-            label="Experience"
-            value={scoringWeights.experience}
-            onChange={v => setScoringWeights(prev => ({ ...prev, experience: v }))}
-            description="Seniority + rating"
-          />
-          <WeightInput
-            label="Preference"
-            value={scoringWeights.preference}
-            onChange={v => setScoringWeights(prev => ({ ...prev, preference: v }))}
-            description="Shift time preference"
-          />
-          <WeightInput
-            label="Fairness"
-            value={scoringWeights.fairness}
-            onChange={v => setScoringWeights(prev => ({ ...prev, fairness: v }))}
-            description="Workload balance"
-          />
+          <WeightInput label="Availability" value={draft.scoringWeights.availability}
+            onChange={v => setDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, availability: v } }))} description="Schedule overlap match" />
+          <WeightInput label="Experience" value={draft.scoringWeights.experience}
+            onChange={v => setDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, experience: v } }))} description="Seniority + rating" />
+          <WeightInput label="Preference" value={draft.scoringWeights.preference}
+            onChange={v => setDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, preference: v } }))} description="Shift time preference" />
+          <WeightInput label="Fairness" value={draft.scoringWeights.fairness}
+            onChange={v => setDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, fairness: v } }))} description="Workload balance" />
         </div>
         <WeightSumIndicator
-          sum={scoringWeights.availability + scoringWeights.experience + scoringWeights.preference + scoringWeights.fairness}
+          sum={draft.scoringWeights.availability + draft.scoringWeights.experience + draft.scoringWeights.preference + draft.scoringWeights.fairness}
         />
       </div>
 
@@ -111,40 +125,24 @@ export default function SettingsPage() {
           </div>
           <div className="flex items-center gap-2">
             <Label className="text-xs">Enabled</Label>
-            <Switch checked={useDemandForecast} onCheckedChange={setUseDemandForecast} />
+            <Switch checked={draft.useDemandForecast} onCheckedChange={v => setDraft(prev => ({ ...prev, useDemandForecast: v }))} />
           </div>
         </div>
-        {useDemandForecast && (
+        {draft.useDemandForecast && (
           <>
             <p className="text-xs text-muted-foreground -mt-3">Adjust staffing levels based on predicted demand. Weights must sum to 1.0.</p>
             <div className="grid grid-cols-2 gap-4">
-              <WeightInput
-                label="Historical Sales"
-                value={forecastWeights.historicalSales}
-                onChange={v => setForecastWeights(prev => ({ ...prev, historicalSales: v }))}
-                description="Past revenue patterns"
-              />
-              <WeightInput
-                label="Events"
-                value={forecastWeights.events}
-                onChange={v => setForecastWeights(prev => ({ ...prev, events: v }))}
-                description="Local event impact"
-              />
-              <WeightInput
-                label="Weather"
-                value={forecastWeights.weather}
-                onChange={v => setForecastWeights(prev => ({ ...prev, weather: v }))}
-                description="Weather conditions"
-              />
-              <WeightInput
-                label="Seasonal"
-                value={forecastWeights.seasonal}
-                onChange={v => setForecastWeights(prev => ({ ...prev, seasonal: v }))}
-                description="Day-of-week patterns"
-              />
+              <WeightInput label="Historical Sales" value={draft.forecastWeights.historicalSales}
+                onChange={v => setDraft(prev => ({ ...prev, forecastWeights: { ...prev.forecastWeights, historicalSales: v } }))} description="Past revenue patterns" />
+              <WeightInput label="Events" value={draft.forecastWeights.events}
+                onChange={v => setDraft(prev => ({ ...prev, forecastWeights: { ...prev.forecastWeights, events: v } }))} description="Local event impact" />
+              <WeightInput label="Weather" value={draft.forecastWeights.weather}
+                onChange={v => setDraft(prev => ({ ...prev, forecastWeights: { ...prev.forecastWeights, weather: v } }))} description="Weather conditions" />
+              <WeightInput label="Seasonal" value={draft.forecastWeights.seasonal}
+                onChange={v => setDraft(prev => ({ ...prev, forecastWeights: { ...prev.forecastWeights, seasonal: v } }))} description="Day-of-week patterns" />
             </div>
             <WeightSumIndicator
-              sum={forecastWeights.historicalSales + forecastWeights.events + forecastWeights.weather + forecastWeights.seasonal}
+              sum={draft.forecastWeights.historicalSales + draft.forecastWeights.events + draft.forecastWeights.weather + draft.forecastWeights.seasonal}
             />
           </>
         )}
@@ -164,6 +162,8 @@ export default function SettingsPage() {
           <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-destructive" /> Stay within labor budget</li>
         </ul>
       </div>
+
+      <UnsavedChangesBar isDirty={isDirty} onSave={handleSave} onDiscard={discard} />
     </div>
   );
 }
