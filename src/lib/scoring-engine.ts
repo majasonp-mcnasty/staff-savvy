@@ -31,7 +31,7 @@ function availabilityScore(overlapHours: number, shiftHours: number): number {
  */
 function experienceScore(emp: Employee): number {
   const base = SENIORITY_EXPERIENCE[emp.seniorityLevel] || 60;
-  const bonus = RATING_BONUS[emp.performanceRating] || 0;
+  const bonus = (emp.performanceRating - 1) * RATING_BONUS_PER_POINT; // 0 at 1.0, 20 at 5.0
   return Math.min(100, base + bonus);
 }
 

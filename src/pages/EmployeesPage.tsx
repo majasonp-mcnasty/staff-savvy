@@ -133,10 +133,14 @@ export default function EmployeesPage() {
               </div>
             </div>
             <div className="flex items-center gap-1 mb-3">
-              {[1, 2, 3, 4, 5].map(s => (
-                <Star key={s} className={`w-3 h-3 ${s <= emp.performanceRating ? 'fill-warning text-warning' : 'text-muted'}`} />
-              ))}
-              <span className="text-xs text-muted-foreground ml-1">Max {emp.maxWeeklyHours}h/wk</span>
+              {[1, 2, 3, 4, 5].map(s => {
+                const filled = emp.performanceRating >= s;
+                const half = !filled && emp.performanceRating >= s - 0.5;
+                return (
+                  <Star key={s} className={`w-3 h-3 ${filled ? 'fill-warning text-warning' : half ? 'fill-warning/50 text-warning' : 'text-muted'}`} />
+                );
+              })}
+              <span className="text-xs text-muted-foreground ml-1">{emp.performanceRating.toFixed(1)} · Max {emp.maxWeeklyHours}h/wk</span>
             </div>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {emp.qualifiedStations.map(sid => {
