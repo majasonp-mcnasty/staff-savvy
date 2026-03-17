@@ -198,7 +198,21 @@ export default function EmployeesPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>Rating (1-5)</Label><Input type="number" min={1} max={5} value={editing.performanceRating} onChange={e => setEditing({ ...editing, performanceRating: Math.min(5, Math.max(1, +e.target.value)) })} /></div>
+                <div>
+                  <Label>Rating (1.0-5.0)</Label>
+                  <Input
+                    type="number"
+                    min={1} max={5} step={0.1}
+                    value={editing.performanceRating}
+                    onChange={e => handleRatingChange(e.target.value)}
+                    className={ratingError ? 'border-destructive' : ''}
+                  />
+                  {ratingError && (
+                    <p className="text-[10px] text-destructive mt-0.5 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />{ratingError}
+                    </p>
+                  )}
+                </div>
                 <div>
                   <Label>Shift Pref</Label>
                   <Select value={editing.shiftPreference || 'any'} onValueChange={v => setEditing({ ...editing, shiftPreference: v as ShiftPreference })}>
