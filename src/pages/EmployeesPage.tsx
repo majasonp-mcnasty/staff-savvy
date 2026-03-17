@@ -54,7 +54,7 @@ export default function EmployeesPage() {
   }
 
   function openNew() { setEditing(newEmployee()); setIsNew(true); setRatingError(null); }
-  // openEdit moved below
+  
   function openEdit(emp: Employee) {
     setEditing({ ...emp, availability: { ...emp.availability }, certifications: [...(emp.certifications || [])], timeOff: [...(emp.timeOff || [])] });
     setIsNew(false);
