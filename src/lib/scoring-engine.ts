@@ -4,7 +4,7 @@ import {
 } from './types';
 
 const SENIORITY_EXPERIENCE: Record<string, number> = { junior: 60, mid: 80, senior: 100 };
-const RATING_BONUS: Record<number, number> = { 1: 0, 2: 5, 3: 10, 4: 15, 5: 20 };
+const RATING_BONUS_PER_POINT = 5; // 5 points per rating point, linear scale
 
 export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
   availability: 0.40,
