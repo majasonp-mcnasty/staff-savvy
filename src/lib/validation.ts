@@ -32,6 +32,6 @@ export function weightsAreValid(weights: object, tolerance = 0.01): boolean {
 /**
  * Calculate the sum of weight values.
  */
-export function weightSum(weights: Record<string, number>): number {
-  return Object.values(weights).reduce((a, b) => a + b, 0);
+export function weightSum(weights: object): number {
+  return (Object.values(weights) as number[]).reduce((a, b) => a + b, 0);
 }
