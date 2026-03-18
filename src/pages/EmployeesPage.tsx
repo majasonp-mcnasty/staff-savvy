@@ -37,25 +37,13 @@ export default function EmployeesPage() {
   const [certInput, setCertInput] = useState('');
   const [ratingError, setRatingError] = useState<string | null>(null);
 
-  function validateRating(value: number): string | null {
-    if (isNaN(value)) return 'Enter a value between 1.0 and 5.0 (max 1 decimal place)';
-    if (value < 1 || value > 5) return 'Enter a value between 1.0 and 5.0 (max 1 decimal place)';
-    const decimalPart = value.toString().split('.')[1];
-    if (decimalPart && decimalPart.length > 1) return 'Enter a value between 1.0 and 5.0 (max 1 decimal place)';
-    return null;
-  }
-
   function handleRatingChange(rawValue: string) {
     if (!editing) return;
     if (rawValue === '') { setEditing({ ...editing, performanceRating: 1 }); setRatingError(null); return; }
     const num = parseFloat(rawValue);
     const error = validateRating(num);
     setRatingError(error);
-    if (!error) {
-      setEditing({ ...editing, performanceRating: Math.round(num * 10) / 10 });
-    } else {
-      setEditing({ ...editing, performanceRating: num });
-    }
+    setEditing({ ...editing, performanceRating: error ? num : normalizeRating(num) });
   }
 
   function openNew() { setEditing(newEmployee()); setIsNew(true); setRatingError(null); }
