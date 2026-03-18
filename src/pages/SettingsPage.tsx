@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Settings, BarChart3, Target, Brain } from 'lucide-react';
 import UnsavedChangesBar from '@/components/UnsavedChangesBar';
+import { weightSum } from '@/lib/validation';
 
 export default function SettingsPage() {
   const { settingsDraft, setSettingsDraft, saveSettings, discardSettings } = useAppState();
