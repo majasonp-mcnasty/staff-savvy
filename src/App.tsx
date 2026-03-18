@@ -11,6 +11,7 @@ import StationsPage from "./pages/StationsPage";
 import SchedulePage from "./pages/SchedulePage";
 import SettingsPage from "./pages/SettingsPage";
 import ForecastDataPage from "./pages/ForecastDataPage";
+import ReportsPage from "./pages/ReportsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const router = createBrowserRouter([
       { path: "/schedule", element: <SchedulePage /> },
       { path: "/settings", element: <SettingsPage /> },
       { path: "/forecast-data", element: <ForecastDataPage /> },
+      { path: "/reports", element: <ReportsPage /> },
       { path: "*", element: <NotFound /> },
     ],
   },

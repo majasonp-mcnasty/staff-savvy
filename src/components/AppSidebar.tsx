@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Users, LayoutGrid, Calendar, BarChart3, Settings, Zap, TrendingUp } from 'lucide-react';
+import { Users, LayoutGrid, Calendar, BarChart3, Settings, Zap, TrendingUp, FileBarChart } from 'lucide-react';
 import { useAppState } from '@/context/AppContext';
 
 const navItems = [
@@ -8,6 +8,7 @@ const navItems = [
   { to: '/stations', icon: LayoutGrid, label: 'Stations', dirtyKey: 'stations' as const },
   { to: '/schedule', icon: Calendar, label: 'Schedule', dirtyKey: null },
   { to: '/forecast-data', icon: TrendingUp, label: 'Forecast Data', dirtyKey: 'forecast' as const },
+  { to: '/reports', icon: FileBarChart, label: 'Reports', dirtyKey: null },
   { to: '/settings', icon: Settings, label: 'Settings', dirtyKey: 'settings' as const },
 ];
 

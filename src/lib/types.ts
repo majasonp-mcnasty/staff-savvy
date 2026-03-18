@@ -68,6 +68,8 @@ export interface EmployeeScore {
   experience: number;
   preference: number;
   fairness: number;
+  laborEfficiency: number;
+  fatigue: number;
   total: number;
 }
 
@@ -77,6 +79,13 @@ export interface LaborSummary {
   budgetStatus: 'within_budget' | 'over_budget' | 'no_budget';
   overtimeCost: number;
   regularCost: number;
+}
+
+export interface ValidationSummary {
+  coverageComplete: boolean;
+  hardConstraintViolations: string[];
+  fairnessIssues: string[];
+  schedulingConflicts: string[];
 }
 
 export interface ScheduleResult {
@@ -89,6 +98,7 @@ export interface ScheduleResult {
   generatedAt: string;
   laborSummary: LaborSummary;
   demandForecast?: DemandForecastEntry[];
+  validationSummary: ValidationSummary;
 }
 
 export interface BudgetSettings {
@@ -103,6 +113,8 @@ export interface ScoringWeights {
   experience: number;
   preference: number;
   fairness: number;
+  laborEfficiency: number;
+  fatigue: number;
 }
 
 export interface ForecastWeights {
