@@ -7,6 +7,7 @@ import { SAMPLE_EMPLOYEES, SAMPLE_STATIONS, SAMPLE_REQUIREMENTS, DEFAULT_BUDGET 
 import { generateSchedule } from '@/lib/scheduling-engine';
 import { DEFAULT_SCORING_WEIGHTS } from '@/lib/scoring-engine';
 import { DEFAULT_FORECAST_WEIGHTS, getDefaultForecastInputs } from '@/lib/demand-forecast';
+import { weightsAreValid } from '@/lib/validation';
 
 // ── SessionStorage helpers ──
 const STORAGE_KEY = 'shiftoptima_drafts';
