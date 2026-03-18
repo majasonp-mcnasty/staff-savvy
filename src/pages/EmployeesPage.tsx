@@ -6,8 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useDraftState } from '@/hooks/use-draft-state';
-import { useUnsavedWarning } from '@/hooks/use-unsaved-warning';
 import UnsavedChangesBar from '@/components/UnsavedChangesBar';
 
 const EMPTY_AVAILABILITY: Record<DayOfWeek, TimeWindow[]> = {
@@ -29,25 +27,14 @@ function newEmployee(): Employee {
 }
 
 export default function EmployeesPage() {
-  const { employees, setEmployees, stations } = useAppState();
-
-  const { draft, setDraft, isDirty, discard } = useDraftState(employees);
-  useUnsavedWarning(isDirty);
+  const { employeesDraft, setEmployeesDraft, saveEmployees, discardEmployees, stations } = useAppState();
+  const draft = employeesDraft.draft;
+  const isDirty = employeesDraft.isDirty;
 
   const [editing, setEditing] = useState<Employee | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [certInput, setCertInput] = useState('');
   const [ratingError, setRatingError] = useState<string | null>(null);
-
-  const handleSave = () => {
-    // Validate all employees
-    for (const emp of draft) {
-      if (!emp.name.trim()) return false;
-      const error = validateRating(emp.performanceRating);
-      if (error) return false;
-    }
-    setEmployees(draft);
-  };
 
   function validateRating(value: number): string | null {
     if (isNaN(value)) return 'Enter a value between 1.0 and 5.0 (max 1 decimal place)';
@@ -83,12 +70,12 @@ export default function EmployeesPage() {
     const error = validateRating(editing.performanceRating);
     if (error) { setRatingError(error); return; }
     const normalized = { ...editing, performanceRating: Math.round(editing.performanceRating * 10) / 10 };
-    setDraft(prev => isNew ? [...prev, normalized] : prev.map(e => e.id === normalized.id ? normalized : e));
+    setEmployeesDraft(prev => isNew ? [...prev, normalized] : prev.map(e => e.id === normalized.id ? normalized : e));
     setEditing(null);
     setRatingError(null);
   }
 
-  function remove(id: string) { setDraft(prev => prev.filter(e => e.id !== id)); }
+  function remove(id: string) { setEmployeesDraft(prev => prev.filter(e => e.id !== id)); }
 
   function toggleStation(stationId: string) {
     if (!editing) return;
@@ -224,8 +211,7 @@ export default function EmployeesPage() {
                 <div>
                   <Label>Rating (1.0-5.0)</Label>
                   <Input
-                    type="number"
-                    min={1} max={5} step={0.1}
+                    type="number" min={1} max={5} step={0.1}
                     value={editing.performanceRating}
                     onChange={e => handleRatingChange(e.target.value)}
                     className={ratingError ? 'border-destructive' : ''}
@@ -321,7 +307,7 @@ export default function EmployeesPage() {
         </DialogContent>
       </Dialog>
 
-      <UnsavedChangesBar isDirty={isDirty} onSave={handleSave} onDiscard={discard} />
+      <UnsavedChangesBar isDirty={isDirty} onSave={saveEmployees} onDiscard={discardEmployees} />
     </div>
   );
 }

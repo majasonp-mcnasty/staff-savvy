@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useAppState } from '@/context/AppContext';
 import { Station, CoverageRequirement, generateId, DAYS_OF_WEEK, DAY_LABELS, DayOfWeek } from '@/lib/types';
 import { Plus, Pencil, Trash2, Shield } from 'lucide-react';
@@ -6,8 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { useDraftState } from '@/hooks/use-draft-state';
-import { useUnsavedWarning } from '@/hooks/use-unsaved-warning';
 import UnsavedChangesBar from '@/components/UnsavedChangesBar';
 
 const COLORS = [
@@ -16,25 +14,18 @@ const COLORS = [
 ];
 
 export default function StationsPage() {
-  const { stations, setStations, requirements, setRequirements, employees } = useAppState();
-
-  const savedSnapshot = useMemo(() => ({ stations, requirements }), [stations, requirements]);
-  const { draft, setDraft, isDirty, discard } = useDraftState(savedSnapshot);
-  useUnsavedWarning(isDirty);
+  const { stationsDraft, setStationsDraft, saveStations, discardStations, employees } = useAppState();
+  const draft = stationsDraft.draft;
+  const isDirty = stationsDraft.isDirty;
 
   const [editStation, setEditStation] = useState<Station | null>(null);
   const [isNewStation, setIsNewStation] = useState(false);
   const [editReq, setEditReq] = useState<CoverageRequirement | null>(null);
   const [isNewReq, setIsNewReq] = useState(false);
 
-  const handleSave = () => {
-    setStations(draft.stations);
-    setRequirements(draft.requirements);
-  };
-
   function saveStation() {
     if (!editStation || !editStation.name.trim()) return;
-    setDraft(prev => ({
+    setStationsDraft(prev => ({
       ...prev,
       stations: isNewStation ? [...prev.stations, editStation] : prev.stations.map(s => s.id === editStation.id ? editStation : s),
     }));
@@ -42,7 +33,7 @@ export default function StationsPage() {
   }
 
   function removeStation(id: string) {
-    setDraft(prev => ({
+    setStationsDraft(prev => ({
       ...prev,
       stations: prev.stations.filter(s => s.id !== id),
       requirements: prev.requirements.filter(r => r.stationId !== id),
@@ -51,7 +42,7 @@ export default function StationsPage() {
 
   function saveReq() {
     if (!editReq) return;
-    setDraft(prev => ({
+    setStationsDraft(prev => ({
       ...prev,
       requirements: isNewReq
         ? [...prev.requirements, editReq]
@@ -63,7 +54,7 @@ export default function StationsPage() {
   }
 
   function removeReq(req: CoverageRequirement) {
-    setDraft(prev => ({
+    setStationsDraft(prev => ({
       ...prev,
       requirements: prev.requirements.filter(r =>
         !(r.stationId === req.stationId && r.day === req.day && r.timeWindow.start === req.timeWindow.start)
@@ -86,7 +77,6 @@ export default function StationsPage() {
         </button>
       </div>
 
-      {/* Stations */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {draft.stations.map(st => {
           const qualifiedCount = employees.filter(e => e.qualifiedStations.includes(st.id)).length;
@@ -119,7 +109,6 @@ export default function StationsPage() {
         })}
       </div>
 
-      {/* Coverage Requirements */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">Coverage Requirements</h2>
@@ -179,12 +168,9 @@ export default function StationsPage() {
         </div>
       </div>
 
-      {/* Station Dialog */}
       <Dialog open={!!editStation} onOpenChange={() => setEditStation(null)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{isNewStation ? 'Add Station' : 'Edit Station'}</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>{isNewStation ? 'Add Station' : 'Edit Station'}</DialogTitle></DialogHeader>
           {editStation && (
             <div className="space-y-4">
               <div>
@@ -195,12 +181,7 @@ export default function StationsPage() {
                 <Label>Color</Label>
                 <div className="flex gap-2 mt-1.5">
                   {COLORS.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => setEditStation({ ...editStation, color: c })}
-                      className={`w-7 h-7 rounded-full border-2 transition-all ${editStation.color === c ? 'border-foreground scale-110' : 'border-transparent'}`}
-                      style={{ backgroundColor: c }}
-                    />
+                    <button key={c} onClick={() => setEditStation({ ...editStation, color: c })} className={`w-7 h-7 rounded-full border-2 transition-all ${editStation.color === c ? 'border-foreground scale-110' : 'border-transparent'}`} style={{ backgroundColor: c }} />
                   ))}
                 </div>
               </div>
@@ -216,43 +197,26 @@ export default function StationsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Requirement Dialog */}
       <Dialog open={!!editReq} onOpenChange={() => setEditReq(null)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Coverage Requirement</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Coverage Requirement</DialogTitle></DialogHeader>
           {editReq && (
             <div className="space-y-4">
               <div>
                 <Label>Station</Label>
-                <select
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm"
-                  value={editReq.stationId}
-                  onChange={e => setEditReq({ ...editReq, stationId: e.target.value })}
-                >
+                <select className="w-full mt-1 px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm" value={editReq.stationId} onChange={e => setEditReq({ ...editReq, stationId: e.target.value })}>
                   {draft.stations.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
               <div>
                 <Label>Day</Label>
-                <select
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm"
-                  value={editReq.day}
-                  onChange={e => setEditReq({ ...editReq, day: e.target.value as DayOfWeek })}
-                >
+                <select className="w-full mt-1 px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm" value={editReq.day} onChange={e => setEditReq({ ...editReq, day: e.target.value as DayOfWeek })}>
                   {DAYS_OF_WEEK.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Start</Label>
-                  <Input type="time" value={editReq.timeWindow.start} onChange={e => setEditReq({ ...editReq, timeWindow: { ...editReq.timeWindow, start: e.target.value } })} />
-                </div>
-                <div>
-                  <Label>End</Label>
-                  <Input type="time" value={editReq.timeWindow.end} onChange={e => setEditReq({ ...editReq, timeWindow: { ...editReq.timeWindow, end: e.target.value } })} />
-                </div>
+                <div><Label>Start</Label><Input type="time" value={editReq.timeWindow.start} onChange={e => setEditReq({ ...editReq, timeWindow: { ...editReq.timeWindow, start: e.target.value } })} /></div>
+                <div><Label>End</Label><Input type="time" value={editReq.timeWindow.end} onChange={e => setEditReq({ ...editReq, timeWindow: { ...editReq.timeWindow, end: e.target.value } })} /></div>
               </div>
               <div>
                 <Label>Required Employees</Label>
@@ -266,7 +230,7 @@ export default function StationsPage() {
         </DialogContent>
       </Dialog>
 
-      <UnsavedChangesBar isDirty={isDirty} onSave={handleSave} onDiscard={discard} />
+      <UnsavedChangesBar isDirty={isDirty} onSave={saveStations} onDiscard={discardStations} />
     </div>
   );
 }
