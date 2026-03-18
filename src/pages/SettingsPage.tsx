@@ -3,44 +3,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Settings, BarChart3, Target, Brain } from 'lucide-react';
-import { useDraftState } from '@/hooks/use-draft-state';
-import { useUnsavedWarning } from '@/hooks/use-unsaved-warning';
 import UnsavedChangesBar from '@/components/UnsavedChangesBar';
-import { useMemo } from 'react';
 
 export default function SettingsPage() {
-  const {
-    budget, setBudget,
-    scoringWeights, setScoringWeights,
-    forecastWeights, setForecastWeights,
-    useDemandForecast, setUseDemandForecast,
-  } = useAppState();
-
-  const savedSnapshot = useMemo(() => ({
-    budget, scoringWeights, forecastWeights, useDemandForecast,
-  }), [budget, scoringWeights, forecastWeights, useDemandForecast]);
-
-  const { draft, setDraft, isDirty, discard } = useDraftState(savedSnapshot);
-
-  useUnsavedWarning(isDirty);
-
-  const handleSave = () => {
-    // Validate scoring weights sum
-    const sSum = draft.scoringWeights.availability + draft.scoringWeights.experience + draft.scoringWeights.preference + draft.scoringWeights.fairness;
-    if (Math.abs(sSum - 1) >= 0.01) {
-      return false;
-    }
-    if (draft.useDemandForecast) {
-      const fSum = draft.forecastWeights.historicalSales + draft.forecastWeights.events + draft.forecastWeights.weather + draft.forecastWeights.seasonal;
-      if (Math.abs(fSum - 1) >= 0.01) {
-        return false;
-      }
-    }
-    setBudget(draft.budget);
-    setScoringWeights(draft.scoringWeights);
-    setForecastWeights(draft.forecastWeights);
-    setUseDemandForecast(draft.useDemandForecast);
-  };
+  const { settingsDraft, setSettingsDraft, saveSettings, discardSettings } = useAppState();
+  const draft = settingsDraft.draft;
+  const isDirty = settingsDraft.isDirty;
 
   return (
     <div className="space-y-6 animate-fade-in max-w-2xl pb-20">
@@ -61,7 +29,7 @@ export default function SettingsPage() {
             <Input
               type="number" min={0}
               value={draft.budget.weeklyBudgetCap ?? ''}
-              onChange={e => setDraft(prev => ({ ...prev, budget: { ...prev.budget, weeklyBudgetCap: e.target.value ? +e.target.value : null } }))}
+              onChange={e => setSettingsDraft(prev => ({ ...prev, budget: { ...prev.budget, weeklyBudgetCap: e.target.value ? +e.target.value : null } }))}
               placeholder="No cap"
             />
             <p className="text-xs text-muted-foreground mt-1">Leave empty for no cap</p>
@@ -71,7 +39,7 @@ export default function SettingsPage() {
             <Input
               type="number" min={1}
               value={draft.budget.overtimeThreshold}
-              onChange={e => setDraft(prev => ({ ...prev, budget: { ...prev.budget, overtimeThreshold: +e.target.value } }))}
+              onChange={e => setSettingsDraft(prev => ({ ...prev, budget: { ...prev.budget, overtimeThreshold: +e.target.value } }))}
             />
           </div>
           <div>
@@ -79,7 +47,7 @@ export default function SettingsPage() {
             <Input
               type="number" min={1} step={0.1}
               value={draft.budget.overtimeMultiplier}
-              onChange={e => setDraft(prev => ({ ...prev, budget: { ...prev.budget, overtimeMultiplier: +e.target.value } }))}
+              onChange={e => setSettingsDraft(prev => ({ ...prev, budget: { ...prev.budget, overtimeMultiplier: +e.target.value } }))}
             />
             <p className="text-xs text-muted-foreground mt-1">e.g., 1.5 = time and a half</p>
           </div>
@@ -88,7 +56,7 @@ export default function SettingsPage() {
             <Input
               type="number" min={0} max={24}
               value={draft.budget.minRestHours}
-              onChange={e => setDraft(prev => ({ ...prev, budget: { ...prev.budget, minRestHours: +e.target.value } }))}
+              onChange={e => setSettingsDraft(prev => ({ ...prev, budget: { ...prev.budget, minRestHours: +e.target.value } }))}
             />
           </div>
         </div>
@@ -103,13 +71,13 @@ export default function SettingsPage() {
         <p className="text-xs text-muted-foreground -mt-3">Weights must sum to 1.0. Controls how employees are ranked for shift assignment.</p>
         <div className="grid grid-cols-2 gap-4">
           <WeightInput label="Availability" value={draft.scoringWeights.availability}
-            onChange={v => setDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, availability: v } }))} description="Schedule overlap match" />
+            onChange={v => setSettingsDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, availability: v } }))} description="Schedule overlap match" />
           <WeightInput label="Experience" value={draft.scoringWeights.experience}
-            onChange={v => setDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, experience: v } }))} description="Seniority + rating" />
+            onChange={v => setSettingsDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, experience: v } }))} description="Seniority + rating" />
           <WeightInput label="Preference" value={draft.scoringWeights.preference}
-            onChange={v => setDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, preference: v } }))} description="Shift time preference" />
+            onChange={v => setSettingsDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, preference: v } }))} description="Shift time preference" />
           <WeightInput label="Fairness" value={draft.scoringWeights.fairness}
-            onChange={v => setDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, fairness: v } }))} description="Workload balance" />
+            onChange={v => setSettingsDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, fairness: v } }))} description="Workload balance" />
         </div>
         <WeightSumIndicator
           sum={draft.scoringWeights.availability + draft.scoringWeights.experience + draft.scoringWeights.preference + draft.scoringWeights.fairness}
@@ -125,7 +93,7 @@ export default function SettingsPage() {
           </div>
           <div className="flex items-center gap-2">
             <Label className="text-xs">Enabled</Label>
-            <Switch checked={draft.useDemandForecast} onCheckedChange={v => setDraft(prev => ({ ...prev, useDemandForecast: v }))} />
+            <Switch checked={draft.useDemandForecast} onCheckedChange={v => setSettingsDraft(prev => ({ ...prev, useDemandForecast: v }))} />
           </div>
         </div>
         {draft.useDemandForecast && (
@@ -133,13 +101,13 @@ export default function SettingsPage() {
             <p className="text-xs text-muted-foreground -mt-3">Adjust staffing levels based on predicted demand. Weights must sum to 1.0.</p>
             <div className="grid grid-cols-2 gap-4">
               <WeightInput label="Historical Sales" value={draft.forecastWeights.historicalSales}
-                onChange={v => setDraft(prev => ({ ...prev, forecastWeights: { ...prev.forecastWeights, historicalSales: v } }))} description="Past revenue patterns" />
+                onChange={v => setSettingsDraft(prev => ({ ...prev, forecastWeights: { ...prev.forecastWeights, historicalSales: v } }))} description="Past revenue patterns" />
               <WeightInput label="Events" value={draft.forecastWeights.events}
-                onChange={v => setDraft(prev => ({ ...prev, forecastWeights: { ...prev.forecastWeights, events: v } }))} description="Local event impact" />
+                onChange={v => setSettingsDraft(prev => ({ ...prev, forecastWeights: { ...prev.forecastWeights, events: v } }))} description="Local event impact" />
               <WeightInput label="Weather" value={draft.forecastWeights.weather}
-                onChange={v => setDraft(prev => ({ ...prev, forecastWeights: { ...prev.forecastWeights, weather: v } }))} description="Weather conditions" />
+                onChange={v => setSettingsDraft(prev => ({ ...prev, forecastWeights: { ...prev.forecastWeights, weather: v } }))} description="Weather conditions" />
               <WeightInput label="Seasonal" value={draft.forecastWeights.seasonal}
-                onChange={v => setDraft(prev => ({ ...prev, forecastWeights: { ...prev.forecastWeights, seasonal: v } }))} description="Day-of-week patterns" />
+                onChange={v => setSettingsDraft(prev => ({ ...prev, forecastWeights: { ...prev.forecastWeights, seasonal: v } }))} description="Day-of-week patterns" />
             </div>
             <WeightSumIndicator
               sum={draft.forecastWeights.historicalSales + draft.forecastWeights.events + draft.forecastWeights.weather + draft.forecastWeights.seasonal}
@@ -163,7 +131,7 @@ export default function SettingsPage() {
         </ul>
       </div>
 
-      <UnsavedChangesBar isDirty={isDirty} onSave={handleSave} onDiscard={discard} />
+      <UnsavedChangesBar isDirty={isDirty} onSave={saveSettings} onDiscard={discardSettings} />
     </div>
   );
 }

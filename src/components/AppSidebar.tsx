@@ -1,17 +1,19 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { Users, LayoutGrid, Calendar, BarChart3, Settings, Zap, TrendingUp } from 'lucide-react';
+import { useAppState } from '@/context/AppContext';
 
 const navItems = [
-  { to: '/', icon: BarChart3, label: 'Dashboard' },
-  { to: '/employees', icon: Users, label: 'Employees' },
-  { to: '/stations', icon: LayoutGrid, label: 'Stations' },
-  { to: '/schedule', icon: Calendar, label: 'Schedule' },
-  { to: '/forecast-data', icon: TrendingUp, label: 'Forecast Data' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
+  { to: '/', icon: BarChart3, label: 'Dashboard', dirtyKey: null },
+  { to: '/employees', icon: Users, label: 'Employees', dirtyKey: 'employees' as const },
+  { to: '/stations', icon: LayoutGrid, label: 'Stations', dirtyKey: 'stations' as const },
+  { to: '/schedule', icon: Calendar, label: 'Schedule', dirtyKey: null },
+  { to: '/forecast-data', icon: TrendingUp, label: 'Forecast Data', dirtyKey: 'forecast' as const },
+  { to: '/settings', icon: Settings, label: 'Settings', dirtyKey: 'settings' as const },
 ];
 
 export default function AppSidebar() {
   const location = useLocation();
+  const { dirtyModules, saveStatus, lastSavedAt } = useAppState();
 
   return (
     <aside className="hidden md:flex flex-col w-64 min-h-screen sidebar-gradient border-r border-sidebar-border">
@@ -30,6 +32,7 @@ export default function AppSidebar() {
       <nav className="flex-1 p-4 space-y-1">
         {navItems.map(item => {
           const isActive = location.pathname === item.to;
+          const isDirty = item.dirtyKey ? dirtyModules[item.dirtyKey] : false;
           return (
             <NavLink
               key={item.to}
@@ -41,16 +44,24 @@ export default function AppSidebar() {
               }`}
             >
               <item.icon className="w-4.5 h-4.5" />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {isDirty && (
+                <span className="w-2 h-2 rounded-full bg-warning shrink-0" title="Unsaved changes" />
+              )}
             </NavLink>
           );
         })}
       </nav>
 
-      <div className="p-4 border-t border-sidebar-border">
+      <div className="p-4 border-t border-sidebar-border space-y-3">
         <div className="px-3 py-2 rounded-lg bg-sidebar-accent/50">
-          <p className="text-xs text-sidebar-foreground/60">Powered by</p>
-          <p className="text-xs font-medium text-sidebar-accent-foreground">Rule-Based AI Engine</p>
+          <p className="text-xs text-sidebar-foreground/60">Status</p>
+          <p className="text-xs font-medium text-sidebar-accent-foreground">
+            {saveStatus === 'saved' && (lastSavedAt ? `Saved at ${lastSavedAt}` : 'All saved')}
+            {saveStatus === 'unsaved' && '● Unsaved changes'}
+            {saveStatus === 'saving' && 'Saving...'}
+            {saveStatus === 'error' && 'Save failed'}
+          </p>
         </div>
       </div>
     </aside>
