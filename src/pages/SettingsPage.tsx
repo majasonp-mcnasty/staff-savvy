@@ -112,9 +112,7 @@ export default function SettingsPage() {
               <WeightInput label="Seasonal" value={draft.forecastWeights.seasonal}
                 onChange={v => setSettingsDraft(prev => ({ ...prev, forecastWeights: { ...prev.forecastWeights, seasonal: v } }))} description="Day-of-week patterns" />
             </div>
-            <WeightSumIndicator
-              sum={draft.forecastWeights.historicalSales + draft.forecastWeights.events + draft.forecastWeights.weather + draft.forecastWeights.seasonal}
-            />
+            <WeightSumIndicator sum={weightSum(draft.forecastWeights)} />
           </>
         )}
       </div>
