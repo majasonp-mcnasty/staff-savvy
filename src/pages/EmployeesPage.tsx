@@ -58,7 +58,7 @@ export default function EmployeesPage() {
     if (!editing || !editing.name.trim()) return;
     const error = validateRating(editing.performanceRating);
     if (error) { setRatingError(error); return; }
-    const normalized = { ...editing, performanceRating: Math.round(editing.performanceRating * 10) / 10 };
+    const normalized = { ...editing, performanceRating: normalizeRating(editing.performanceRating) };
     setEmployeesDraft(prev => isNew ? [...prev, normalized] : prev.map(e => e.id === normalized.id ? normalized : e));
     setEditing(null);
     setRatingError(null);
