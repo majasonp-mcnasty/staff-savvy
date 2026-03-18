@@ -2,6 +2,7 @@ import {
   Employee, Station, CoverageRequirement, ScheduleResult, ScheduleShift,
   BudgetSettings, DayOfWeek, DAYS_OF_WEEK, timeToMinutes, shiftDurationHours,
   TimeWindow, ScoringWeights, LaborSummary, ForecastInputs, DemandForecastEntry,
+  ValidationSummary,
 } from './types';
 import { calculateEmployeeScore, DEFAULT_SCORING_WEIGHTS } from './scoring-engine';
 import { generateDemandForecast, getDefaultForecastInputs, DEFAULT_FORECAST_WEIGHTS } from './demand-forecast';
@@ -65,6 +66,23 @@ function totalEmployeeHours(shifts: ScheduleShift[], employeeId: string): number
     .reduce((sum, s) => sum + shiftDurationHours(s.timeWindow), 0);
 }
 
+function countConsecutiveShiftDays(shifts: ScheduleShift[], employeeId: string): number {
+  const daysWorked = new Set(shifts.filter(s => s.employeeId === employeeId).map(s => DAY_INDEX[s.day]));
+  if (daysWorked.size === 0) return 0;
+  const sorted = [...daysWorked].sort((a, b) => a - b);
+  let maxConsecutive = 1;
+  let current = 1;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === sorted[i - 1] + 1) {
+      current++;
+      maxConsecutive = Math.max(maxConsecutive, current);
+    } else {
+      current = 1;
+    }
+  }
+  return maxConsecutive;
+}
+
 function calculateShiftCost(hours: number, wage: number, currentWeeklyHours: number, budget: BudgetSettings): number {
   const threshold = budget.overtimeThreshold;
   if (currentWeeklyHours >= threshold) {
@@ -98,15 +116,12 @@ export function generateSchedule(
   const forecastWeights = options.forecastWeights || DEFAULT_FORECAST_WEIGHTS;
   const forecastInputs = options.forecastInputs || getDefaultForecastInputs();
 
-  // Generate demand forecast
   const demandForecast = generateDemandForecast(requirements, forecastInputs, forecastWeights);
 
-  // Adjust requirements based on demand forecast if enabled
   const adjustedReqs = (options.useDemandForecast !== false)
     ? adjustRequirementsForDemand(requirements, demandForecast)
     : [...requirements];
 
-  // Sort: critical stations first, then by required count desc
   const sortedReqs = adjustedReqs.sort((a, b) => {
     const stA = stations.find(s => s.id === a.stationId);
     const stB = stations.find(s => s.id === b.stationId);
@@ -115,13 +130,11 @@ export function generateSchedule(
     return b.requiredCount - a.requiredCount;
   });
 
-  // Process day-by-day, specialized roles first (as per spec)
   const reqsByDay = DAYS_OF_WEEK.map(day =>
     sortedReqs.filter(r => r.day === day)
   );
 
   for (const dayReqs of reqsByDay) {
-    // Separate specialized (has minSeniority or critical station) from general
     const specialized = dayReqs.filter(r => {
       const st = stations.find(s => s.id === r.stationId);
       return r.minSeniorityLevel || st?.isCritical;
@@ -131,7 +144,6 @@ export function generateSchedule(
       return !r.minSeniorityLevel && !st?.isCritical;
     });
 
-    // Assign specialized first, then general
     for (const req of [...specialized, ...general]) {
       assignShifts(req, employees, stations, shifts, budget, weights);
     }
@@ -175,7 +187,6 @@ export function generateSchedule(
     totalCost += shift.shiftCost;
   }
 
-  // Separate regular vs overtime cost
   for (const emp of employees) {
     const empHours = hoursPerEmployee[emp.id] || 0;
     const regHours = Math.min(empHours, budget.overtimeThreshold);
@@ -200,6 +211,11 @@ export function generateSchedule(
     );
   }
 
+  // Build validation summary
+  const validationSummary = buildValidationSummary(
+    shifts, employees, stations, adjustedReqs, hoursPerEmployee, budget
+  );
+
   return {
     shifts,
     totalCost,
@@ -210,6 +226,7 @@ export function generateSchedule(
     generatedAt: new Date().toISOString(),
     laborSummary,
     demandForecast,
+    validationSummary,
   };
 }
 
@@ -224,7 +241,6 @@ function assignShifts(
   const station = stations.find(s => s.id === req.stationId);
   if (!station) return;
 
-  // Count already-assigned for this requirement
   const alreadyAssigned = shifts.filter(s =>
     s.stationId === req.stationId && s.day === req.day &&
     overlaps(s.timeWindow, req.timeWindow)
@@ -237,7 +253,6 @@ function assignShifts(
       if (!emp.qualifiedStations.includes(req.stationId)) return false;
       if (req.minSeniorityLevel && SENIORITY_RANK[emp.seniorityLevel] < SENIORITY_RANK[req.minSeniorityLevel]) return false;
       if ((emp.timeOff || []).some(to => to.day === req.day)) return false;
-      // Check certification requirements
       if (station.requiredCertifications?.length) {
         const empCerts = emp.certifications || [];
         if (!station.requiredCertifications.every(c => empCerts.includes(c))) return false;
@@ -247,6 +262,7 @@ function assignShifts(
     })
     .map(emp => {
       const currentHours = totalEmployeeHours(shifts, emp.id);
+      const consecutiveShifts = countConsecutiveShiftDays(shifts, emp.id);
       const dayAvail = emp.availability[req.day] || [];
       const bestWindow = dayAvail
         .map(tw => intersection(tw, req.timeWindow))
@@ -254,7 +270,7 @@ function assignShifts(
         .sort((a, b) => shiftDurationHours(b!) - shiftDurationHours(a!))[0];
       const shiftHours = bestWindow ? shiftDurationHours(bestWindow) : 0;
       const cost = calculateShiftCost(shiftHours, emp.hourlyWage, currentHours, budget);
-      const score = calculateEmployeeScore(emp, req.timeWindow, shiftHours, shiftDurationHours(req.timeWindow), currentHours, weights);
+      const score = calculateEmployeeScore(emp, req.timeWindow, shiftHours, shiftDurationHours(req.timeWindow), currentHours, weights, consecutiveShifts);
 
       return { emp, shiftHours, cost, currentHours, window: bestWindow, score };
     })
@@ -266,7 +282,6 @@ function assignShifts(
       if (hasRestViolation(shifts, x.emp.id, req.day, x.window, budget.minRestHours)) return false;
       return true;
     })
-    // Sort by composite score (highest first), then by cost (lowest) as tiebreaker
     .sort((a, b) => {
       const scoreDiff = b.score.total - a.score.total;
       if (Math.abs(scoreDiff) > 5) return scoreDiff;
@@ -287,9 +302,6 @@ function assignShifts(
   }
 }
 
-/**
- * Adjust coverage requirements based on demand forecast multipliers.
- */
 function adjustRequirementsForDemand(
   requirements: CoverageRequirement[],
   forecast: DemandForecastEntry[],
@@ -304,4 +316,70 @@ function adjustRequirementsForDemand(
       requiredCount: Math.ceil(req.requiredCount * entry.staffingMultiplier),
     };
   });
+}
+
+function buildValidationSummary(
+  shifts: ScheduleShift[],
+  employees: Employee[],
+  stations: Station[],
+  requirements: CoverageRequirement[],
+  hoursPerEmployee: Record<string, number>,
+  budget: BudgetSettings,
+): ValidationSummary {
+  const hardConstraintViolations: string[] = [];
+  const fairnessIssues: string[] = [];
+  const schedulingConflicts: string[] = [];
+
+  // Check coverage
+  let coverageComplete = true;
+  for (const req of requirements) {
+    const station = stations.find(s => s.id === req.stationId);
+    if (!station) continue;
+    const assigned = shifts.filter(s =>
+      s.stationId === req.stationId && s.day === req.day &&
+      timeToMinutes(s.timeWindow.start) < timeToMinutes(req.timeWindow.end) &&
+      timeToMinutes(req.timeWindow.start) < timeToMinutes(s.timeWindow.end)
+    ).length;
+    if (assigned < req.requiredCount) {
+      coverageComplete = false;
+    }
+  }
+
+  // Check max hours violations
+  for (const emp of employees) {
+    const hours = hoursPerEmployee[emp.id] || 0;
+    if (hours > emp.maxWeeklyHours) {
+      hardConstraintViolations.push(`${emp.name} exceeds max weekly hours (${hours.toFixed(1)}h / ${emp.maxWeeklyHours}h)`);
+    }
+  }
+
+  // Check fairness - hours distribution
+  const allHours = employees.map(e => hoursPerEmployee[e.id] || 0).filter(h => h > 0);
+  if (allHours.length >= 2) {
+    const avg = allHours.reduce((a, b) => a + b, 0) / allHours.length;
+    const maxDeviation = Math.max(...allHours.map(h => Math.abs(h - avg)));
+    if (maxDeviation > avg * 0.5 && avg > 0) {
+      fairnessIssues.push(`Hours distribution uneven: deviation of ${maxDeviation.toFixed(1)}h from average ${avg.toFixed(1)}h`);
+    }
+  }
+
+  // Check for overlapping shifts per employee
+  for (const emp of employees) {
+    const empShifts = shifts.filter(s => s.employeeId === emp.id);
+    for (let i = 0; i < empShifts.length; i++) {
+      for (let j = i + 1; j < empShifts.length; j++) {
+        if (empShifts[i].day === empShifts[j].day) {
+          const aStart = timeToMinutes(empShifts[i].timeWindow.start);
+          const aEnd = timeToMinutes(empShifts[i].timeWindow.end);
+          const bStart = timeToMinutes(empShifts[j].timeWindow.start);
+          const bEnd = timeToMinutes(empShifts[j].timeWindow.end);
+          if (aStart < bEnd && bStart < aEnd) {
+            schedulingConflicts.push(`${emp.name} has overlapping shifts on ${empShifts[i].day}`);
+          }
+        }
+      }
+    }
+  }
+
+  return { coverageComplete, hardConstraintViolations, fairnessIssues, schedulingConflicts };
 }

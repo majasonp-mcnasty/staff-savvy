@@ -69,18 +69,22 @@ export default function SettingsPage() {
           <h2 className="text-sm font-semibold text-foreground">Employee Scoring Weights</h2>
         </div>
         <p className="text-xs text-muted-foreground -mt-3">Weights must sum to 1.0. Controls how employees are ranked for shift assignment.</p>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <WeightInput label="Availability" value={draft.scoringWeights.availability}
-            onChange={v => setSettingsDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, availability: v } }))} description="Schedule overlap match" />
+            onChange={v => setSettingsDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, availability: v } }))} description="Schedule overlap (35%)" />
           <WeightInput label="Experience" value={draft.scoringWeights.experience}
-            onChange={v => setSettingsDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, experience: v } }))} description="Seniority + rating" />
+            onChange={v => setSettingsDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, experience: v } }))} description="Seniority + rating (20%)" />
           <WeightInput label="Preference" value={draft.scoringWeights.preference}
-            onChange={v => setSettingsDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, preference: v } }))} description="Shift time preference" />
+            onChange={v => setSettingsDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, preference: v } }))} description="Shift time pref (10%)" />
           <WeightInput label="Fairness" value={draft.scoringWeights.fairness}
-            onChange={v => setSettingsDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, fairness: v } }))} description="Workload balance" />
+            onChange={v => setSettingsDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, fairness: v } }))} description="Workload balance (15%)" />
+          <WeightInput label="Labor Efficiency" value={draft.scoringWeights.laborEfficiency}
+            onChange={v => setSettingsDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, laborEfficiency: v } }))} description="Cost optimization (10%)" />
+          <WeightInput label="Fatigue" value={draft.scoringWeights.fatigue}
+            onChange={v => setSettingsDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, fatigue: v } }))} description="Rest & recovery (10%)" />
         </div>
         <WeightSumIndicator
-          sum={draft.scoringWeights.availability + draft.scoringWeights.experience + draft.scoringWeights.preference + draft.scoringWeights.fairness}
+          sum={draft.scoringWeights.availability + draft.scoringWeights.experience + draft.scoringWeights.preference + draft.scoringWeights.fairness + draft.scoringWeights.laborEfficiency + draft.scoringWeights.fatigue}
         />
       </div>
 
@@ -128,6 +132,7 @@ export default function SettingsPage() {
           <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-warning" /> Prevent unnecessary overtime</li>
           <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-success" /> Evenly distribute shifts (fairness)</li>
           <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-destructive" /> Stay within labor budget</li>
+          <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-primary" /> Minimize fatigue and close-open patterns</li>
         </ul>
       </div>
 

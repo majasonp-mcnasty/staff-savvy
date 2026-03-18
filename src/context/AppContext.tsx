@@ -8,6 +8,35 @@ import { generateSchedule } from '@/lib/scheduling-engine';
 import { DEFAULT_SCORING_WEIGHTS } from '@/lib/scoring-engine';
 import { DEFAULT_FORECAST_WEIGHTS, getDefaultForecastInputs } from '@/lib/demand-forecast';
 
+// ── SessionStorage helpers ──
+const STORAGE_KEY = 'shiftoptima_drafts';
+
+interface StoredDrafts {
+  employees?: Employee[];
+  stations?: { stations: Station[]; requirements: CoverageRequirement[] };
+  settings?: SettingsSnapshot;
+  forecast?: ForecastInputs;
+}
+
+function loadDrafts(): StoredDrafts {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveDraftsToStorage(drafts: StoredDrafts) {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(drafts));
+  } catch { /* quota exceeded, silently fail */ }
+}
+
+function clearStoredDrafts() {
+  try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+}
+
 // ── Draft module types ──
 interface DraftModule<T> {
   saved: T;
@@ -30,7 +59,6 @@ interface StationsSnapshot {
 export type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error';
 
 interface AppState {
-  // Committed state
   employees: Employee[];
   stations: Station[];
   requirements: CoverageRequirement[];
@@ -41,19 +69,16 @@ interface AppState {
   forecastInputs: ForecastInputs;
   useDemandForecast: boolean;
 
-  // Draft modules
   employeesDraft: DraftModule<Employee[]>;
   stationsDraft: DraftModule<StationsSnapshot>;
   settingsDraft: DraftModule<SettingsSnapshot>;
   forecastDraft: DraftModule<ForecastInputs>;
 
-  // Draft setters
   setEmployeesDraft: React.Dispatch<React.SetStateAction<Employee[]>>;
   setStationsDraft: React.Dispatch<React.SetStateAction<StationsSnapshot>>;
   setSettingsDraft: React.Dispatch<React.SetStateAction<SettingsSnapshot>>;
   setForecastDraft: React.Dispatch<React.SetStateAction<ForecastInputs>>;
 
-  // Save/discard per section
   saveEmployees: () => boolean;
   discardEmployees: () => void;
   saveStations: () => boolean;
@@ -63,15 +88,12 @@ interface AppState {
   saveForecast: () => boolean;
   discardForecast: () => void;
 
-  // Global dirty
   anyDirty: boolean;
   dirtyModules: { employees: boolean; stations: boolean; settings: boolean; forecast: boolean };
 
-  // Global save status
   saveStatus: SaveStatus;
   lastSavedAt: string | null;
 
-  // Schedule
   setSchedule: React.Dispatch<React.SetStateAction<ScheduleResult | null>>;
   generateNewSchedule: () => void;
 }
@@ -83,6 +105,8 @@ function isEqual(a: unknown, b: unknown): boolean {
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const stored = useMemo(() => loadDrafts(), []);
+
   // ── Committed (saved) state ──
   const [employees, setEmployees] = useState<Employee[]>(SAMPLE_EMPLOYEES);
   const [stations, setStations] = useState<Station[]>(SAMPLE_STATIONS);
@@ -94,16 +118,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [forecastInputs, setForecastInputs] = useState<ForecastInputs>(getDefaultForecastInputs());
   const [useDemandForecast, setUseDemandForecast] = useState(true);
 
-  // ── Draft state (persists across navigation) ──
-  const [empDraft, setEmpDraft] = useState<Employee[]>(SAMPLE_EMPLOYEES);
-  const [staDraft, setStaDraft] = useState<StationsSnapshot>({ stations: SAMPLE_STATIONS, requirements: SAMPLE_REQUIREMENTS });
-  const [setDraft, setSetDraft] = useState<SettingsSnapshot>({
+  // ── Draft state (initialized from sessionStorage if available) ──
+  const [empDraft, setEmpDraft] = useState<Employee[]>(stored.employees || SAMPLE_EMPLOYEES);
+  const [staDraft, setStaDraft] = useState<StationsSnapshot>(stored.stations || { stations: SAMPLE_STATIONS, requirements: SAMPLE_REQUIREMENTS });
+  const [setDraft, setSetDraft] = useState<SettingsSnapshot>(stored.settings || {
     budget: DEFAULT_BUDGET,
     scoringWeights: DEFAULT_SCORING_WEIGHTS,
     forecastWeights: DEFAULT_FORECAST_WEIGHTS,
     useDemandForecast: true,
   });
-  const [fcDraft, setFcDraft] = useState<ForecastInputs>(getDefaultForecastInputs());
+  const [fcDraft, setFcDraft] = useState<ForecastInputs>(stored.forecast || getDefaultForecastInputs());
 
   // ── Save status ──
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
@@ -116,7 +140,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const fcDirty = !isEqual(fcDraft, forecastInputs);
   const anyDirty = empDirty || staDirty || setDirty || fcDirty;
 
-  // Update global save status
+  // Persist drafts to sessionStorage when they change
+  useEffect(() => {
+    const drafts: StoredDrafts = {};
+    if (empDirty) drafts.employees = empDraft;
+    if (staDirty) drafts.stations = staDraft;
+    if (setDirty) drafts.settings = setDraft;
+    if (fcDirty) drafts.forecast = fcDraft;
+    if (anyDirty) {
+      saveDraftsToStorage(drafts);
+    } else {
+      clearStoredDrafts();
+    }
+  }, [empDraft, staDraft, setDraft, fcDraft, empDirty, staDirty, setDirty, fcDirty, anyDirty]);
+
   useEffect(() => {
     setSaveStatus(anyDirty ? 'unsaved' : 'saved');
   }, [anyDirty]);
@@ -162,7 +199,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const saveSettings = useCallback(() => {
     const sSum = setDraft.scoringWeights.availability + setDraft.scoringWeights.experience +
-      setDraft.scoringWeights.preference + setDraft.scoringWeights.fairness;
+      setDraft.scoringWeights.preference + setDraft.scoringWeights.fairness +
+      setDraft.scoringWeights.laborEfficiency + setDraft.scoringWeights.fatigue;
     if (Math.abs(sSum - 1) >= 0.01) return false;
     if (setDraft.useDemandForecast) {
       const fSum = setDraft.forecastWeights.historicalSales + setDraft.forecastWeights.events +
