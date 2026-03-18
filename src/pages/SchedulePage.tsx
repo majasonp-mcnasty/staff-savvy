@@ -89,33 +89,13 @@ export default function SchedulePage() {
 
     const newShifts = schedule.shifts.map((s, i) => {
       if (i !== shiftIdx) return s;
-      return {
-        ...s,
-        employeeId: targetEmployeeId,
-        day: targetDay,
-        shiftCost: newCost,
-        score: undefined, // Clear auto-score since this is manual
-      };
+      return { ...s, employeeId: targetEmployeeId, day: targetDay, shiftCost: newCost, score: undefined };
     });
 
-    // Recalculate totals
-    const totalCost = newShifts.reduce((sum, s) => sum + s.shiftCost, 0);
-    const hoursPerEmployee: Record<string, number> = {};
-    for (const s of newShifts) {
-      hoursPerEmployee[s.employeeId] = (hoursPerEmployee[s.employeeId] || 0) + shiftDurationHours(s.timeWindow);
-    }
-    const costPerDay = {} as Record<DayOfWeek, number>;
-    for (const d of DAYS_OF_WEEK) {
-      costPerDay[d] = newShifts.filter(s => s.day === d).reduce((sum, s) => sum + s.shiftCost, 0);
-    }
-
+    const totals = recalculateScheduleTotals(newShifts);
     setSchedule(prev => prev ? {
-      ...prev,
-      shifts: newShifts,
-      totalCost,
-      hoursPerEmployee,
-      costPerDay,
-      laborSummary: { ...prev.laborSummary, totalLaborCost: totalCost },
+      ...prev, shifts: newShifts, ...totals,
+      laborSummary: { ...prev.laborSummary, totalLaborCost: totals.totalCost },
     } : prev);
 
     setOverrideCount(c => c + 1);
