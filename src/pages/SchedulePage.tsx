@@ -163,13 +163,8 @@ export default function SchedulePage() {
     downloadFile(JSON.stringify(output, null, 2), 'application/json', `schedule-${new Date().toISOString().slice(0, 10)}.json`);
   }
 
-  function downloadFile(content: string, type: string, filename: string) {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
-  }
+
+
 
   const handleRegenerate = () => {
     generateNewSchedule();
