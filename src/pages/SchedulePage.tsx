@@ -6,6 +6,8 @@ import {
 } from '@/lib/types';
 import { Zap, Download, RefreshCw, Calendar, FileJson, GripVertical, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { downloadFile } from '@/lib/export-helpers';
+import { recalculateScheduleTotals } from '@/lib/schedule-helpers';
 
 interface DragData {
   shiftIndex: number;
@@ -87,33 +89,13 @@ export default function SchedulePage() {
 
     const newShifts = schedule.shifts.map((s, i) => {
       if (i !== shiftIdx) return s;
-      return {
-        ...s,
-        employeeId: targetEmployeeId,
-        day: targetDay,
-        shiftCost: newCost,
-        score: undefined, // Clear auto-score since this is manual
-      };
+      return { ...s, employeeId: targetEmployeeId, day: targetDay, shiftCost: newCost, score: undefined };
     });
 
-    // Recalculate totals
-    const totalCost = newShifts.reduce((sum, s) => sum + s.shiftCost, 0);
-    const hoursPerEmployee: Record<string, number> = {};
-    for (const s of newShifts) {
-      hoursPerEmployee[s.employeeId] = (hoursPerEmployee[s.employeeId] || 0) + shiftDurationHours(s.timeWindow);
-    }
-    const costPerDay = {} as Record<DayOfWeek, number>;
-    for (const d of DAYS_OF_WEEK) {
-      costPerDay[d] = newShifts.filter(s => s.day === d).reduce((sum, s) => sum + s.shiftCost, 0);
-    }
-
+    const totals = recalculateScheduleTotals(newShifts);
     setSchedule(prev => prev ? {
-      ...prev,
-      shifts: newShifts,
-      totalCost,
-      hoursPerEmployee,
-      costPerDay,
-      laborSummary: { ...prev.laborSummary, totalLaborCost: totalCost },
+      ...prev, shifts: newShifts, ...totals,
+      laborSummary: { ...prev.laborSummary, totalLaborCost: totals.totalCost },
     } : prev);
 
     setOverrideCount(c => c + 1);
@@ -127,23 +109,10 @@ export default function SchedulePage() {
     const prevShifts = history[history.length - 1];
     setHistory(prev => prev.slice(0, -1));
 
-    const totalCost = prevShifts.reduce((sum, s) => sum + s.shiftCost, 0);
-    const hoursPerEmployee: Record<string, number> = {};
-    for (const s of prevShifts) {
-      hoursPerEmployee[s.employeeId] = (hoursPerEmployee[s.employeeId] || 0) + shiftDurationHours(s.timeWindow);
-    }
-    const costPerDay = {} as Record<DayOfWeek, number>;
-    for (const d of DAYS_OF_WEEK) {
-      costPerDay[d] = prevShifts.filter(s => s.day === d).reduce((sum, s) => sum + s.shiftCost, 0);
-    }
-
+    const totals = recalculateScheduleTotals(prevShifts);
     setSchedule(prev => prev ? {
-      ...prev,
-      shifts: prevShifts,
-      totalCost,
-      hoursPerEmployee,
-      costPerDay,
-      laborSummary: { ...prev.laborSummary, totalLaborCost: totalCost },
+      ...prev, shifts: prevShifts, ...totals,
+      laborSummary: { ...prev.laborSummary, totalLaborCost: totals.totalCost },
     } : prev);
     setOverrideCount(c => Math.max(0, c - 1));
     toast.info('Undo successful');
@@ -194,13 +163,8 @@ export default function SchedulePage() {
     downloadFile(JSON.stringify(output, null, 2), 'application/json', `schedule-${new Date().toISOString().slice(0, 10)}.json`);
   }
 
-  function downloadFile(content: string, type: string, filename: string) {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
-  }
+
+
 
   const handleRegenerate = () => {
     generateNewSchedule();

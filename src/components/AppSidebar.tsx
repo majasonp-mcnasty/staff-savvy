@@ -1,16 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Users, LayoutGrid, Calendar, BarChart3, Settings, Zap, TrendingUp, FileBarChart } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { useAppState } from '@/context/AppContext';
-
-const navItems = [
-  { to: '/', icon: BarChart3, label: 'Dashboard', dirtyKey: null },
-  { to: '/employees', icon: Users, label: 'Employees', dirtyKey: 'employees' as const },
-  { to: '/stations', icon: LayoutGrid, label: 'Stations', dirtyKey: 'stations' as const },
-  { to: '/schedule', icon: Calendar, label: 'Schedule', dirtyKey: null },
-  { to: '/forecast-data', icon: TrendingUp, label: 'Forecast Data', dirtyKey: 'forecast' as const },
-  { to: '/reports', icon: FileBarChart, label: 'Reports', dirtyKey: null },
-  { to: '/settings', icon: Settings, label: 'Settings', dirtyKey: 'settings' as const },
-];
+import { NAV_ITEMS } from '@/lib/nav-items';
 
 export default function AppSidebar() {
   const location = useLocation();
@@ -31,7 +22,7 @@ export default function AppSidebar() {
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map(item => {
+        {NAV_ITEMS.map(item => {
           const isActive = location.pathname === item.to;
           const isDirty = item.dirtyKey ? dirtyModules[item.dirtyKey] : false;
           return (

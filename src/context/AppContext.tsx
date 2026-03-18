@@ -7,6 +7,7 @@ import { SAMPLE_EMPLOYEES, SAMPLE_STATIONS, SAMPLE_REQUIREMENTS, DEFAULT_BUDGET 
 import { generateSchedule } from '@/lib/scheduling-engine';
 import { DEFAULT_SCORING_WEIGHTS } from '@/lib/scoring-engine';
 import { DEFAULT_FORECAST_WEIGHTS, getDefaultForecastInputs } from '@/lib/demand-forecast';
+import { weightsAreValid } from '@/lib/validation';
 
 // ── SessionStorage helpers ──
 const STORAGE_KEY = 'shiftoptima_drafts';
@@ -198,15 +199,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [stations, requirements]);
 
   const saveSettings = useCallback(() => {
-    const sSum = setDraft.scoringWeights.availability + setDraft.scoringWeights.experience +
-      setDraft.scoringWeights.preference + setDraft.scoringWeights.fairness +
-      setDraft.scoringWeights.laborEfficiency + setDraft.scoringWeights.fatigue;
-    if (Math.abs(sSum - 1) >= 0.01) return false;
-    if (setDraft.useDemandForecast) {
-      const fSum = setDraft.forecastWeights.historicalSales + setDraft.forecastWeights.events +
-        setDraft.forecastWeights.weather + setDraft.forecastWeights.seasonal;
-      if (Math.abs(fSum - 1) >= 0.01) return false;
-    }
+    if (!weightsAreValid(setDraft.scoringWeights)) return false;
+    if (setDraft.useDemandForecast && !weightsAreValid(setDraft.forecastWeights)) return false;
     setBudget({ ...setDraft.budget });
     setScoringWeights({ ...setDraft.scoringWeights });
     setForecastWeights({ ...setDraft.forecastWeights });

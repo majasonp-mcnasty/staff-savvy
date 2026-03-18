@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Settings, BarChart3, Target, Brain } from 'lucide-react';
 import UnsavedChangesBar from '@/components/UnsavedChangesBar';
+import { weightSum } from '@/lib/validation';
 
 export default function SettingsPage() {
   const { settingsDraft, setSettingsDraft, saveSettings, discardSettings } = useAppState();
@@ -83,9 +84,7 @@ export default function SettingsPage() {
           <WeightInput label="Fatigue" value={draft.scoringWeights.fatigue}
             onChange={v => setSettingsDraft(prev => ({ ...prev, scoringWeights: { ...prev.scoringWeights, fatigue: v } }))} description="Rest & recovery (10%)" />
         </div>
-        <WeightSumIndicator
-          sum={draft.scoringWeights.availability + draft.scoringWeights.experience + draft.scoringWeights.preference + draft.scoringWeights.fairness + draft.scoringWeights.laborEfficiency + draft.scoringWeights.fatigue}
-        />
+        <WeightSumIndicator sum={weightSum(draft.scoringWeights)} />
       </div>
 
       {/* Demand Forecast */}
@@ -113,9 +112,7 @@ export default function SettingsPage() {
               <WeightInput label="Seasonal" value={draft.forecastWeights.seasonal}
                 onChange={v => setSettingsDraft(prev => ({ ...prev, forecastWeights: { ...prev.forecastWeights, seasonal: v } }))} description="Day-of-week patterns" />
             </div>
-            <WeightSumIndicator
-              sum={draft.forecastWeights.historicalSales + draft.forecastWeights.events + draft.forecastWeights.weather + draft.forecastWeights.seasonal}
-            />
+            <WeightSumIndicator sum={weightSum(draft.forecastWeights)} />
           </>
         )}
       </div>
