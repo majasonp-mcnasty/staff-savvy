@@ -24,8 +24,8 @@ export function normalizeRating(value: number): number {
 /**
  * Check if a set of weights sums to 1.0 (within tolerance).
  */
-export function weightsAreValid(weights: Record<string, number>, tolerance = 0.01): boolean {
-  const sum = Object.values(weights).reduce((a, b) => a + b, 0);
+export function weightsAreValid(weights: object, tolerance = 0.01): boolean {
+  const sum = weightSum(weights);
   return Math.abs(sum - 1) < tolerance;
 }
 
