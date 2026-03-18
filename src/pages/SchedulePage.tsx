@@ -6,6 +6,8 @@ import {
 } from '@/lib/types';
 import { Zap, Download, RefreshCw, Calendar, FileJson, GripVertical, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { downloadFile } from '@/lib/export-helpers';
+import { recalculateScheduleTotals } from '@/lib/schedule-helpers';
 
 interface DragData {
   shiftIndex: number;
