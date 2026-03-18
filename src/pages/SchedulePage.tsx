@@ -109,23 +109,10 @@ export default function SchedulePage() {
     const prevShifts = history[history.length - 1];
     setHistory(prev => prev.slice(0, -1));
 
-    const totalCost = prevShifts.reduce((sum, s) => sum + s.shiftCost, 0);
-    const hoursPerEmployee: Record<string, number> = {};
-    for (const s of prevShifts) {
-      hoursPerEmployee[s.employeeId] = (hoursPerEmployee[s.employeeId] || 0) + shiftDurationHours(s.timeWindow);
-    }
-    const costPerDay = {} as Record<DayOfWeek, number>;
-    for (const d of DAYS_OF_WEEK) {
-      costPerDay[d] = prevShifts.filter(s => s.day === d).reduce((sum, s) => sum + s.shiftCost, 0);
-    }
-
+    const totals = recalculateScheduleTotals(prevShifts);
     setSchedule(prev => prev ? {
-      ...prev,
-      shifts: prevShifts,
-      totalCost,
-      hoursPerEmployee,
-      costPerDay,
-      laborSummary: { ...prev.laborSummary, totalLaborCost: totalCost },
+      ...prev, shifts: prevShifts, ...totals,
+      laborSummary: { ...prev.laborSummary, totalLaborCost: totals.totalCost },
     } : prev);
     setOverrideCount(c => Math.max(0, c - 1));
     toast.info('Undo successful');
