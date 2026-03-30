@@ -1,4 +1,4 @@
-import { Users, LayoutGrid, Calendar, BarChart3, Settings, TrendingUp, FileBarChart } from 'lucide-react';
+import { Users, LayoutGrid, Calendar, BarChart3, Settings, TrendingUp, FileBarChart, Plug } from 'lucide-react';
 
 export const NAV_ITEMS = [
   { to: '/', icon: BarChart3, label: 'Dashboard', dirtyKey: null },
@@ -7,5 +7,6 @@ export const NAV_ITEMS = [
   { to: '/schedule', icon: Calendar, label: 'Schedule', dirtyKey: null },
   { to: '/forecast-data', icon: TrendingUp, label: 'Forecast Data', dirtyKey: 'forecast' as const },
   { to: '/reports', icon: FileBarChart, label: 'Reports', dirtyKey: null },
+  { to: '/integrations', icon: Plug, label: 'Integrations', dirtyKey: null },
   { to: '/settings', icon: Settings, label: 'Settings', dirtyKey: 'settings' as const },
 ] as const;

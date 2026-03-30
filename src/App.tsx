@@ -12,6 +12,7 @@ import SchedulePage from "./pages/SchedulePage";
 import SettingsPage from "./pages/SettingsPage";
 import ForecastDataPage from "./pages/ForecastDataPage";
 import ReportsPage from "./pages/ReportsPage";
+import IntegrationsPage from "./pages/IntegrationsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const router = createBrowserRouter([
       { path: "/settings", element: <SettingsPage /> },
       { path: "/forecast-data", element: <ForecastDataPage /> },
       { path: "/reports", element: <ReportsPage /> },
+      { path: "/integrations", element: <IntegrationsPage /> },
       { path: "*", element: <NotFound /> },
     ],
   },
