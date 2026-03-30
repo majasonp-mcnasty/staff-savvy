@@ -4,8 +4,14 @@ import {
   ScoringWeights, ForecastWeights, ForecastInputs, ScheduleResult,
 } from '@/lib/types';
 
-const SUPABASE_URL = 'https://seihwnwwtagoaplzbdvh.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlaWh3bnd3dGFnb2FwbHpiZHZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MjAzODcsImV4cCI6MjA5MDM5NjM4N30.8JnKHlyF6t5lEeQP4ZjcIZm4ieDnSAQmlpYzQ5qN-Dg';
+// Loaded from environment variables — see .env.example
+// SECURITY: never hardcode credentials here (CLAUDE.md §1)
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY — copy .env.example to .env and fill in your values.');
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
