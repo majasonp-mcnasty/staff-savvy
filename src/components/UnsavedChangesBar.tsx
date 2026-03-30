@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 
 interface UnsavedChangesBarProps {
   isDirty: boolean;
-  onSave: () => boolean | void; // return false to block save
+  onSave: () => boolean | void | Promise<boolean | void>;
   onDiscard: () => void;
   saveLabel?: string;
 }
@@ -17,7 +17,7 @@ export default function UnsavedChangesBar({ isDirty, onSave, onDiscard, saveLabe
   const handleSave = async () => {
     setSaving(true);
     try {
-      const result = onSave();
+      const result = await onSave();
       if (result !== false) {
         toast.success('Changes saved successfully.');
       }

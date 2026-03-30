@@ -8,35 +8,14 @@ import { generateSchedule } from '@/lib/scheduling-engine';
 import { DEFAULT_SCORING_WEIGHTS } from '@/lib/scoring-engine';
 import { DEFAULT_FORECAST_WEIGHTS, getDefaultForecastInputs } from '@/lib/demand-forecast';
 import { weightsAreValid } from '@/lib/validation';
-
-// ── SessionStorage helpers ──
-const STORAGE_KEY = 'shiftoptima_drafts';
-
-interface StoredDrafts {
-  employees?: Employee[];
-  stations?: { stations: Station[]; requirements: CoverageRequirement[] };
-  settings?: SettingsSnapshot;
-  forecast?: ForecastInputs;
-}
-
-function loadDrafts(): StoredDrafts {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveDraftsToStorage(drafts: StoredDrafts) {
-  try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(drafts));
-  } catch { /* quota exceeded, silently fail */ }
-}
-
-function clearStoredDrafts() {
-  try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
-}
+import {
+  fetchEmployees, upsertEmployees, deleteEmployee,
+  fetchStations, upsertStations, deleteStation,
+  fetchRequirements, upsertRequirements, replaceAllRequirements,
+  fetchSettings, upsertSettings,
+  saveScheduleResult, fetchLatestSchedule,
+  supabase,
+} from '@/lib/supabase';
 
 // ── Draft module types ──
 interface DraftModule<T> {
@@ -80,13 +59,13 @@ interface AppState {
   setSettingsDraft: React.Dispatch<React.SetStateAction<SettingsSnapshot>>;
   setForecastDraft: React.Dispatch<React.SetStateAction<ForecastInputs>>;
 
-  saveEmployees: () => boolean;
+  saveEmployees: () => Promise<boolean>;
   discardEmployees: () => void;
-  saveStations: () => boolean;
+  saveStations: () => Promise<boolean>;
   discardStations: () => void;
-  saveSettings: () => boolean;
+  saveSettings: () => Promise<boolean>;
   discardSettings: () => void;
-  saveForecast: () => boolean;
+  saveForecast: () => Promise<boolean>;
   discardForecast: () => void;
 
   anyDirty: boolean;
@@ -94,6 +73,7 @@ interface AppState {
 
   saveStatus: SaveStatus;
   lastSavedAt: string | null;
+  dbLoading: boolean;
 
   setSchedule: React.Dispatch<React.SetStateAction<ScheduleResult | null>>;
   generateNewSchedule: () => void;
@@ -106,7 +86,7 @@ function isEqual(a: unknown, b: unknown): boolean {
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const stored = useMemo(() => loadDrafts(), []);
+  const [dbLoading, setDbLoading] = useState(true);
 
   // ── Committed (saved) state ──
   const [employees, setEmployees] = useState<Employee[]>(SAMPLE_EMPLOYEES);
@@ -119,20 +99,119 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [forecastInputs, setForecastInputs] = useState<ForecastInputs>(getDefaultForecastInputs());
   const [useDemandForecast, setUseDemandForecast] = useState(true);
 
-  // ── Draft state (initialized from sessionStorage if available) ──
-  const [empDraft, setEmpDraft] = useState<Employee[]>(stored.employees || SAMPLE_EMPLOYEES);
-  const [staDraft, setStaDraft] = useState<StationsSnapshot>(stored.stations || { stations: SAMPLE_STATIONS, requirements: SAMPLE_REQUIREMENTS });
-  const [setDraft, setSetDraft] = useState<SettingsSnapshot>(stored.settings || {
+  // ── Draft state ──
+  const [empDraft, setEmpDraft] = useState<Employee[]>(SAMPLE_EMPLOYEES);
+  const [staDraft, setStaDraft] = useState<StationsSnapshot>({ stations: SAMPLE_STATIONS, requirements: SAMPLE_REQUIREMENTS });
+  const [setDraft, setSetDraft] = useState<SettingsSnapshot>({
     budget: DEFAULT_BUDGET,
     scoringWeights: DEFAULT_SCORING_WEIGHTS,
     forecastWeights: DEFAULT_FORECAST_WEIGHTS,
     useDemandForecast: true,
   });
-  const [fcDraft, setFcDraft] = useState<ForecastInputs>(stored.forecast || getDefaultForecastInputs());
+  const [fcDraft, setFcDraft] = useState<ForecastInputs>(getDefaultForecastInputs());
 
   // ── Save status ──
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+
+  // ── Load from Supabase on mount ──
+  useEffect(() => {
+    async function loadFromDB() {
+      try {
+        const [dbEmployees, dbStations, dbRequirements, dbSettings, dbSchedule] = await Promise.all([
+          fetchEmployees(),
+          fetchStations(),
+          fetchRequirements(),
+          fetchSettings(),
+          fetchLatestSchedule(),
+        ]);
+
+        // If DB has data, use it; otherwise seed with sample data
+        if (dbEmployees.length > 0) {
+          setEmployees(dbEmployees);
+          setEmpDraft(dbEmployees);
+        } else {
+          await upsertEmployees(SAMPLE_EMPLOYEES);
+        }
+
+        if (dbStations.length > 0) {
+          setStations(dbStations);
+          setRequirements(dbRequirements);
+          setStaDraft({ stations: dbStations, requirements: dbRequirements });
+        } else {
+          await upsertStations(SAMPLE_STATIONS);
+          await replaceAllRequirements(SAMPLE_REQUIREMENTS);
+        }
+
+        if (dbSettings) {
+          setBudget(dbSettings.budget);
+          setScoringWeights(dbSettings.scoringWeights);
+          setForecastWeights(dbSettings.forecastWeights);
+          setForecastInputs(dbSettings.forecastInputs);
+          setUseDemandForecast(dbSettings.useDemandForecast);
+          setSetDraft({
+            budget: dbSettings.budget,
+            scoringWeights: dbSettings.scoringWeights,
+            forecastWeights: dbSettings.forecastWeights,
+            useDemandForecast: dbSettings.useDemandForecast,
+          });
+          setFcDraft(dbSettings.forecastInputs);
+        } else {
+          await upsertSettings({
+            budget: DEFAULT_BUDGET,
+            scoringWeights: DEFAULT_SCORING_WEIGHTS,
+            forecastWeights: DEFAULT_FORECAST_WEIGHTS,
+            forecastInputs: getDefaultForecastInputs(),
+            useDemandForecast: true,
+          });
+        }
+
+        if (dbSchedule) setSchedule(dbSchedule);
+      } catch (err) {
+        console.error('Failed to load from Supabase, using defaults:', err);
+      } finally {
+        setDbLoading(false);
+      }
+    }
+    loadFromDB();
+  }, []);
+
+  // ── Realtime subscriptions ──
+  useEffect(() => {
+    const channel = supabase
+      .channel('db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, async () => {
+        const data = await fetchEmployees();
+        setEmployees(data);
+        setEmpDraft(data);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'stations' }, async () => {
+        const data = await fetchStations();
+        setStations(data);
+        setStaDraft(prev => ({ ...prev, stations: data }));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'coverage_requirements' }, async () => {
+        const data = await fetchRequirements();
+        setRequirements(data);
+        setStaDraft(prev => ({ ...prev, requirements: data }));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, async () => {
+        const data = await fetchSettings();
+        if (!data) return;
+        setBudget(data.budget);
+        setScoringWeights(data.scoringWeights);
+        setForecastWeights(data.forecastWeights);
+        setForecastInputs(data.forecastInputs);
+        setUseDemandForecast(data.useDemandForecast);
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'schedule_results' }, async () => {
+        const data = await fetchLatestSchedule();
+        if (data) setSchedule(data);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   // ── Dirty detection ──
   const empDirty = !isEqual(empDraft, employees);
@@ -140,20 +219,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setDirty = !isEqual(setDraft, { budget, scoringWeights, forecastWeights, useDemandForecast });
   const fcDirty = !isEqual(fcDraft, forecastInputs);
   const anyDirty = empDirty || staDirty || setDirty || fcDirty;
-
-  // Persist drafts to sessionStorage when they change
-  useEffect(() => {
-    const drafts: StoredDrafts = {};
-    if (empDirty) drafts.employees = empDraft;
-    if (staDirty) drafts.stations = staDraft;
-    if (setDirty) drafts.settings = setDraft;
-    if (fcDirty) drafts.forecast = fcDraft;
-    if (anyDirty) {
-      saveDraftsToStorage(drafts);
-    } else {
-      clearStoredDrafts();
-    }
-  }, [empDraft, staDraft, setDraft, fcDraft, empDirty, staDirty, setDirty, fcDirty, anyDirty]);
 
   useEffect(() => {
     setSaveStatus(anyDirty ? 'unsaved' : 'saved');
@@ -167,57 +232,103 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('beforeunload', handler);
   }, [anyDirty]);
 
-  // ── Save functions ──
   const markSaved = () => {
     setLastSavedAt(new Date().toLocaleTimeString());
     setSaveStatus('saved');
   };
 
-  const saveEmployees = useCallback(() => {
+  // ── Save functions (now persist to Supabase) ──
+  const saveEmployees = useCallback(async (): Promise<boolean> => {
     for (const emp of empDraft) {
       if (!emp.name.trim()) return false;
       if (emp.performanceRating < 1 || emp.performanceRating > 5) return false;
     }
-    setEmployees([...empDraft]);
-    markSaved();
-    return true;
-  }, [empDraft]);
+    setSaveStatus('saving');
+    try {
+      // Delete removed employees
+      const removedIds = employees.filter(e => !empDraft.find(d => d.id === e.id)).map(e => e.id);
+      await Promise.all(removedIds.map(deleteEmployee));
+      await upsertEmployees(empDraft);
+      setEmployees([...empDraft]);
+      markSaved();
+      return true;
+    } catch {
+      setSaveStatus('error');
+      return false;
+    }
+  }, [empDraft, employees]);
 
   const discardEmployees = useCallback(() => {
     setEmpDraft([...employees]);
   }, [employees]);
 
-  const saveStations = useCallback(() => {
-    setStations([...staDraft.stations]);
-    setRequirements([...staDraft.requirements]);
-    markSaved();
-    return true;
-  }, [staDraft]);
+  const saveStations = useCallback(async (): Promise<boolean> => {
+    setSaveStatus('saving');
+    try {
+      const removedStationIds = stations.filter(s => !staDraft.stations.find(d => d.id === s.id)).map(s => s.id);
+      await Promise.all(removedStationIds.map(deleteStation));
+      await upsertStations(staDraft.stations);
+      await replaceAllRequirements(staDraft.requirements);
+      setStations([...staDraft.stations]);
+      setRequirements([...staDraft.requirements]);
+      markSaved();
+      return true;
+    } catch {
+      setSaveStatus('error');
+      return false;
+    }
+  }, [staDraft, stations]);
 
   const discardStations = useCallback(() => {
     setStaDraft({ stations: [...stations], requirements: [...requirements] });
   }, [stations, requirements]);
 
-  const saveSettings = useCallback(() => {
+  const saveSettings = useCallback(async (): Promise<boolean> => {
     if (!weightsAreValid(setDraft.scoringWeights)) return false;
     if (setDraft.useDemandForecast && !weightsAreValid(setDraft.forecastWeights)) return false;
-    setBudget({ ...setDraft.budget });
-    setScoringWeights({ ...setDraft.scoringWeights });
-    setForecastWeights({ ...setDraft.forecastWeights });
-    setUseDemandForecast(setDraft.useDemandForecast);
-    markSaved();
-    return true;
-  }, [setDraft]);
+    setSaveStatus('saving');
+    try {
+      await upsertSettings({
+        budget: setDraft.budget,
+        scoringWeights: setDraft.scoringWeights,
+        forecastWeights: setDraft.forecastWeights,
+        forecastInputs: fcDraft,
+        useDemandForecast: setDraft.useDemandForecast,
+      });
+      setBudget({ ...setDraft.budget });
+      setScoringWeights({ ...setDraft.scoringWeights });
+      setForecastWeights({ ...setDraft.forecastWeights });
+      setUseDemandForecast(setDraft.useDemandForecast);
+      markSaved();
+      return true;
+    } catch {
+      setSaveStatus('error');
+      return false;
+    }
+  }, [setDraft, fcDraft]);
 
   const discardSettings = useCallback(() => {
     setSetDraft({ budget, scoringWeights, forecastWeights, useDemandForecast });
   }, [budget, scoringWeights, forecastWeights, useDemandForecast]);
 
-  const saveForecast = useCallback(() => {
-    setForecastInputs({ ...fcDraft });
-    markSaved();
-    return true;
-  }, [fcDraft]);
+  const saveForecast = useCallback(async (): Promise<boolean> => {
+    setSaveStatus('saving');
+    try {
+      await upsertSettings({
+        budget,
+        scoringWeights,
+        forecastWeights,
+        forecastInputs: fcDraft,
+        useDemandForecast,
+      });
+      setForecastInputs({ ...fcDraft });
+      markSaved();
+      return true;
+    } catch {
+      setSaveStatus('error');
+      return false;
+    }
+  }, [fcDraft, budget, scoringWeights, forecastWeights, useDemandForecast]);
 
   const discardForecast = useCallback(() => {
     setFcDraft({ ...forecastInputs });
@@ -229,6 +340,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       scoringWeights, forecastWeights, forecastInputs, useDemandForecast,
     });
     setSchedule(result);
+    saveScheduleResult(result).catch(console.error);
   }, [employees, stations, requirements, budget, scoringWeights, forecastWeights, forecastInputs, useDemandForecast]);
 
   // ── Draft modules ──
@@ -259,6 +371,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveSettings, discardSettings,
       saveForecast, discardForecast,
       anyDirty, dirtyModules, saveStatus, lastSavedAt,
+      dbLoading,
       setSchedule, generateNewSchedule,
     }}>
       {children}
