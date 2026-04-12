@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
+import { toast } from 'sonner';
 import {
   Employee, Station, CoverageRequirement, BudgetSettings, ScheduleResult,
   ScoringWeights, ForecastWeights, ForecastInputs,
@@ -168,7 +169,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         if (dbSchedule) setSchedule(dbSchedule);
       } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
         console.error('Failed to load from Supabase, using defaults:', err);
+        toast.error(`Failed to load data from database: ${msg}. Using defaults.`);
       } finally {
         setDbLoading(false);
       }
@@ -245,15 +248,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setSaveStatus('saving');
     try {
-      // Delete removed employees
       const removedIds = employees.filter(e => !empDraft.find(d => d.id === e.id)).map(e => e.id);
       await Promise.all(removedIds.map(deleteEmployee));
       await upsertEmployees(empDraft);
       setEmployees([...empDraft]);
       markSaved();
       return true;
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[saveEmployees]', err);
       setSaveStatus('error');
+      toast.error(`Failed to save employees: ${msg}`);
       return false;
     }
   }, [empDraft, employees]);
@@ -273,8 +278,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setRequirements([...staDraft.requirements]);
       markSaved();
       return true;
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[saveStations]', err);
       setSaveStatus('error');
+      toast.error(`Failed to save stations: ${msg}`);
       return false;
     }
   }, [staDraft, stations]);
@@ -301,8 +309,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUseDemandForecast(setDraft.useDemandForecast);
       markSaved();
       return true;
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[saveSettings]', err);
       setSaveStatus('error');
+      toast.error(`Failed to save settings: ${msg}`);
       return false;
     }
   }, [setDraft, fcDraft]);
@@ -324,8 +335,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setForecastInputs({ ...fcDraft });
       markSaved();
       return true;
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[saveForecast]', err);
       setSaveStatus('error');
+      toast.error(`Failed to save forecast data: ${msg}`);
       return false;
     }
   }, [fcDraft, budget, scoringWeights, forecastWeights, useDemandForecast]);

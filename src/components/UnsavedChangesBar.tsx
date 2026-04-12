@@ -1,4 +1,4 @@
-import { Save, Undo2, Loader2 } from 'lucide-react';
+import { Save, Undo2, Loader2, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -18,9 +18,17 @@ export default function UnsavedChangesBar({ isDirty, onSave, onDiscard, saveLabe
     setSaving(true);
     try {
       const result = await onSave();
-      if (result !== false) {
+      if (result === false) {
+        toast.error('Save failed — check your inputs and try again.', {
+          icon: <AlertCircle className="w-4 h-4" />,
+        });
+      } else {
         toast.success('Changes saved successfully.');
       }
+    } catch (err) {
+      toast.error(`Save failed — ${err instanceof Error ? err.message : 'unexpected error'}`, {
+        icon: <AlertCircle className="w-4 h-4" />,
+      });
     } finally {
       setSaving(false);
     }
