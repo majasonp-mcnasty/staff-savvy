@@ -11,7 +11,7 @@ import { DEFAULT_FORECAST_WEIGHTS, getDefaultForecastInputs } from '@/lib/demand
 import { weightsAreValid } from '@/lib/validation';
 import {
   fetchEmployees, upsertEmployees, deleteEmployee,
-  fetchStations, upsertStations, deleteStation,
+  fetchStations, upsertStations, deleteStation, updateStationLastActive,
   fetchRequirements, upsertRequirements, replaceAllRequirements,
   fetchSettings, upsertSettings,
   saveScheduleResult, fetchLatestSchedule,
@@ -355,6 +355,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
     setSchedule(result);
     saveScheduleResult(result).catch(console.error);
+    // Mark all scheduled stations as active
+    const activeStationIds = [...new Set(result.shifts.map(s => s.stationId))];
+    updateStationLastActive(activeStationIds).catch(console.error);
   }, [employees, stations, requirements, budget, scoringWeights, forecastWeights, forecastInputs, useDemandForecast]);
 
   // ── Draft modules ──

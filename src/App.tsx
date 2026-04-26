@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AppProvider } from "./context/AppContext";
+import { DateProvider } from "./context/DateContext";
 import AppLayout from "./components/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
 import EmployeesPage from "./pages/EmployeesPage";
@@ -40,7 +41,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AppProvider>
-        <RouterProvider router={router} />
+        <DateProvider>
+          <RouterProvider router={router} />
+        </DateProvider>
       </AppProvider>
     </TooltipProvider>
   </QueryClientProvider>

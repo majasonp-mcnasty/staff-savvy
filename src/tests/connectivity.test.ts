@@ -1,4 +1,6 @@
 /**
+ * @vitest-environment node
+ *
  * Staff-Savvy — Connectivity & Data Persistence Diagnostic Suite
  *
  * Runs 6 test groups covering:

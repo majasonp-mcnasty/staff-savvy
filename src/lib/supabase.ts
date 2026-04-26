@@ -47,6 +47,7 @@ function employeeToRow(e: Employee) {
     time_off: e.timeOff,
     shift_preference: e.shiftPreference,
     certifications: e.certifications,
+    member_since: e.memberSince ?? null,
   };
 }
 
@@ -63,6 +64,7 @@ function rowToEmployee(row: Record<string, unknown>): Employee {
     timeOff: row.time_off as Employee['timeOff'],
     shiftPreference: row.shift_preference as Employee['shiftPreference'],
     certifications: row.certifications as string[],
+    memberSince: (row.member_since as string | null) ?? null,
   };
 }
 
@@ -85,6 +87,16 @@ export async function deleteStation(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function updateStationLastActive(stationIds: string[]): Promise<void> {
+  if (stationIds.length === 0) return;
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('stations')
+    .update({ last_active_at: now })
+    .in('id', stationIds);
+  if (error) throw error;
+}
+
 function stationToRow(s: Station) {
   return {
     id: s.id,
@@ -92,6 +104,7 @@ function stationToRow(s: Station) {
     color: s.color,
     is_critical: s.isCritical,
     required_certifications: s.requiredCertifications ?? [],
+    last_active_at: s.lastActiveAt ?? null,
   };
 }
 
@@ -102,6 +115,7 @@ function rowToStation(row: Record<string, unknown>): Station {
     color: row.color as string,
     isCritical: row.is_critical as boolean,
     requiredCertifications: row.required_certifications as string[],
+    lastActiveAt: (row.last_active_at as string | null) ?? null,
   };
 }
 

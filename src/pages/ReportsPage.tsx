@@ -1,5 +1,7 @@
 import { useAppState } from '@/context/AppContext';
+import { useDateContext } from '@/context/DateContext';
 import { DAYS_OF_WEEK, DAY_LABELS, shiftDurationHours } from '@/lib/types';
+import { format } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { FileBarChart, Users, DollarSign, Clock, Shield, AlertTriangle } from 'lucide-react';
 
@@ -10,6 +12,7 @@ const CHART_COLORS = [
 
 export default function ReportsPage() {
   const { schedule, employees, stations, budget } = useAppState();
+  const { currentWeekLabel } = useDateContext();
 
   if (!schedule) {
     return (
@@ -64,7 +67,7 @@ export default function ReportsPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Schedule generated {new Date(schedule.generatedAt).toLocaleString()} · {schedule.shifts.length} shifts
+          {currentWeekLabel} · {schedule.shifts.length} shifts · Generated {format(new Date(schedule.generatedAt), 'MMM d, h:mm a')}
         </p>
       </div>
 

@@ -1,7 +1,9 @@
 import { useAppState } from '@/context/AppContext';
+import { useDateContext } from '@/context/DateContext';
 import { DAYS_OF_WEEK, DAY_LABELS, shiftDurationHours } from '@/lib/types';
 import { DollarSign, Clock, AlertTriangle, Users, TrendingDown, Zap, Brain, PieChart } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { format } from 'date-fns';
 
 const DEMAND_COLORS: Record<string, string> = {
   low: 'bg-muted text-muted-foreground',
@@ -12,6 +14,7 @@ const DEMAND_COLORS: Record<string, string> = {
 
 export default function DashboardPage() {
   const { employees, schedule, generateNewSchedule, stations, budget } = useAppState();
+  const { currentWeekLabel } = useDateContext();
 
   const costData = schedule
     ? DAYS_OF_WEEK.map(d => ({ day: DAY_LABELS[d], cost: schedule.costPerDay[d] }))
@@ -23,7 +26,8 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {schedule ? `Schedule generated ${new Date(schedule.generatedAt).toLocaleString()}` : 'Generate a schedule to see insights'}
+            This week: {currentWeekLabel}
+            {schedule && ` · Generated ${format(new Date(schedule.generatedAt), 'MMM d, h:mm a')}`}
           </p>
         </div>
         <button onClick={generateNewSchedule} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity shadow-card">

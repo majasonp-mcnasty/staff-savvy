@@ -36,6 +36,7 @@ export interface Employee {
   timeOff: TimeOffRequest[];
   shiftPreference: ShiftPreference;
   certifications: string[];
+  memberSince?: string | null; // ISO date string e.g. "2024-01-15"
 }
 
 export interface Station {
@@ -44,9 +45,11 @@ export interface Station {
   color: string;
   isCritical: boolean;
   requiredCertifications?: string[];
+  lastActiveAt?: string | null; // ISO timestamp
 }
 
 export interface CoverageRequirement {
+  id?: string;
   stationId: string;
   day: DayOfWeek;
   timeWindow: TimeWindow;
@@ -61,6 +64,7 @@ export interface ScheduleShift {
   timeWindow: TimeWindow;
   shiftCost: number;
   score?: EmployeeScore;
+  notes?: string;
 }
 
 export interface EmployeeScore {
