@@ -350,7 +350,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ── Schedule generation ──
   const generateNewSchedule = useCallback(() => {
-    const result = generateSchedule(employees, stations, requirements, budget, {
+    // Only pass active coverage requirements to the scheduling engine
+    const activeRequirements = requirements.filter(r => r.isActive !== false);
+    const result = generateSchedule(employees, stations, activeRequirements, budget, {
       scoringWeights, forecastWeights, forecastInputs, useDemandForecast,
     });
     setSchedule(result);

@@ -46,6 +46,7 @@ export interface Station {
   isCritical: boolean;
   requiredCertifications?: string[];
   lastActiveAt?: string | null; // ISO timestamp
+  minSeniorityLevel?: 'junior' | 'mid' | 'senior';
 }
 
 export interface CoverageRequirement {
@@ -55,6 +56,8 @@ export interface CoverageRequirement {
   timeWindow: TimeWindow;
   requiredCount: number;
   minSeniorityLevel?: 'junior' | 'mid' | 'senior';
+  shiftType: 'morning' | 'night';
+  isActive: boolean;
 }
 
 export interface ScheduleShift {

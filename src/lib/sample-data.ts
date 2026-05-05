@@ -91,20 +91,29 @@ export const SAMPLE_EMPLOYEES: Employee[] = [
 export const SAMPLE_REQUIREMENTS: CoverageRequirement[] = [
   ...['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].map(day => ({
     stationId: 'st-1', day: day as any,
-    timeWindow: { start: '08:00', end: '16:00' }, requiredCount: 2,
+    timeWindow: { start: '06:00', end: '12:00' }, requiredCount: 2,
+    shiftType: 'morning' as const, isActive: true,
+  })),
+  ...['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].map(day => ({
+    stationId: 'st-1', day: day as any,
+    timeWindow: { start: '16:00', end: '23:00' }, requiredCount: 2,
+    shiftType: 'night' as const, isActive: true,
   })),
   ...['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].map(day => ({
     stationId: 'st-2', day: day as any,
-    timeWindow: { start: '08:00', end: '16:00' }, requiredCount: 1,
+    timeWindow: { start: '06:00', end: '12:00' }, requiredCount: 1,
+    shiftType: 'morning' as const, isActive: true,
   })),
   ...['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].map(day => ({
     stationId: 'st-3', day: day as any,
-    timeWindow: { start: '08:00', end: '16:00' }, requiredCount: 1,
+    timeWindow: { start: '06:00', end: '12:00' }, requiredCount: 1,
     minSeniorityLevel: 'mid' as const,
+    shiftType: 'morning' as const, isActive: true,
   })),
   ...['saturday', 'sunday'].map(day => ({
     stationId: 'st-1', day: day as any,
-    timeWindow: { start: '09:00', end: '17:00' }, requiredCount: 1,
+    timeWindow: { start: '06:00', end: '12:00' }, requiredCount: 1,
+    shiftType: 'morning' as const, isActive: true,
   })),
 ];
 

@@ -105,6 +105,7 @@ function stationToRow(s: Station) {
     is_critical: s.isCritical,
     required_certifications: s.requiredCertifications ?? [],
     last_active_at: s.lastActiveAt ?? null,
+    min_seniority_level: s.minSeniorityLevel ?? null,
   };
 }
 
@@ -116,6 +117,7 @@ function rowToStation(row: Record<string, unknown>): Station {
     isCritical: row.is_critical as boolean,
     requiredCertifications: row.required_certifications as string[],
     lastActiveAt: (row.last_active_at as string | null) ?? null,
+    minSeniorityLevel: (row.min_seniority_level as Station['minSeniorityLevel']) ?? undefined,
   };
 }
 
@@ -154,17 +156,26 @@ function requirementToRow(r: CoverageRequirement & { id?: string }) {
     time_window: r.timeWindow,
     required_count: r.requiredCount,
     min_seniority_level: r.minSeniorityLevel ?? null,
+    shift_type: r.shiftType,
+    is_active: r.isActive,
   };
 }
 
 function rowToRequirement(row: Record<string, unknown>): CoverageRequirement & { id: string } {
+  // Derive shiftType from time_window.start if the column isn't populated yet
+  const tw = row.time_window as { start: string; end: string };
+  const fallbackShiftType: CoverageRequirement['shiftType'] =
+    tw?.start && tw.start >= '12:00' ? 'night' : 'morning';
+
   return {
     id: row.id as string,
     stationId: row.station_id as string,
     day: row.day as CoverageRequirement['day'],
-    timeWindow: row.time_window as CoverageRequirement['timeWindow'],
+    timeWindow: tw,
     requiredCount: row.required_count as number,
     minSeniorityLevel: row.min_seniority_level as CoverageRequirement['minSeniorityLevel'],
+    shiftType: (row.shift_type as CoverageRequirement['shiftType']) ?? fallbackShiftType,
+    isActive: row.is_active !== undefined ? (row.is_active as boolean) : true,
   };
 }
 
