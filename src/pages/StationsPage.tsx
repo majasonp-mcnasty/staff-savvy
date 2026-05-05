@@ -356,6 +356,7 @@ function StationCard({
         setSaveState(req.day, req.shiftType, 'saved');
         setTimeout(() => setSaveState(req.day, req.shiftType, 'idle'), 2000);
       } catch (err) {
+        console.error('[auto-save coverage req]', err);
         setSaveState(req.day, req.shiftType, 'error');
         toast.error(`Save failed: ${err instanceof Error ? err.message : String(err)}`);
       }
@@ -450,6 +451,7 @@ function StationCard({
         setSenioritySaveState('saved');
         setTimeout(() => setSenioritySaveState('idle'), 2000);
       } catch (err) {
+        console.error('[auto-save station seniority]', err);
         setSenioritySaveState('error');
         toast.error(`Failed to save station seniority: ${err instanceof Error ? err.message : String(err)}`);
       }
