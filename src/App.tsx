@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AppProvider } from "./context/AppContext";
 import { DateProvider } from "./context/DateContext";
+import { SidebarProvider } from "./context/SidebarContext";
 import AppLayout from "./components/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
 import EmployeesPage from "./pages/EmployeesPage";
@@ -42,7 +43,9 @@ const App = () => (
       <Sonner />
       <AppProvider>
         <DateProvider>
-          <RouterProvider router={router} />
+          <SidebarProvider>
+            <RouterProvider router={router} />
+          </SidebarProvider>
         </DateProvider>
       </AppProvider>
     </TooltipProvider>

@@ -6,7 +6,7 @@ import MobileNav from './MobileNav';
 import { useAppState } from '@/context/AppContext';
 
 export default function AppLayout() {
-  const { anyDirty, saveEmployees, saveStations, saveSettings, saveForecast, dirtyModules, generateNewSchedule, discardEmployees, discardStations } = useAppState();
+  const { anyDirty, saveEmployees, saveStations, saveSettings, saveForecast, dirtyModules, generateNewSchedule, discardEmployees, discardStations, discardSettings, discardForecast } = useAppState();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,6 +36,8 @@ export default function AppLayout() {
         if (window.confirm('Discard all unsaved changes?')) {
           if (dirtyModules.employees) discardEmployees();
           if (dirtyModules.stations) discardStations();
+          if (dirtyModules.settings) discardSettings();
+          if (dirtyModules.forecast) discardForecast();
           toast.info('Changes discarded');
         }
         return;
@@ -54,7 +56,7 @@ export default function AppLayout() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [anyDirty, dirtyModules, saveEmployees, saveStations, saveSettings, saveForecast, discardEmployees, discardStations, generateNewSchedule]);
+  }, [anyDirty, dirtyModules, saveEmployees, saveStations, saveSettings, saveForecast, discardEmployees, discardStations, discardSettings, discardForecast, generateNewSchedule]);
 
   return (
     <div className="flex min-h-screen bg-background">

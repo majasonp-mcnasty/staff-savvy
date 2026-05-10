@@ -44,10 +44,15 @@ export default function ForecastDataPage() {
 
   // --- Weather ---
   const updateWeather = (day: DayOfWeek, field: 'temperature' | 'rainProbability', value: number) => {
-    setForecastDraft(prev => ({
-      ...prev,
-      weather: prev.weather.map(w => w.day === day ? { ...w, [field]: value } : w),
-    }));
+    setForecastDraft(prev => {
+      const exists = prev.weather.some(w => w.day === day);
+      if (exists) {
+        return { ...prev, weather: prev.weather.map(w => w.day === day ? { ...w, [field]: value } : w) };
+      }
+      // Day has no entry yet — create it with sensible defaults for the other field
+      const newEntry = { day, temperature: field === 'temperature' ? value : 22, rainProbability: field === 'rainProbability' ? value : 20 };
+      return { ...prev, weather: [...prev.weather, newEntry] };
+    });
   };
 
   const resetToDefaults = () => {

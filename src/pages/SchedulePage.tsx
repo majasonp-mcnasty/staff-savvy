@@ -7,6 +7,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useAppState } from '@/context/AppContext';
 import { useDateContext, formatTimeWindow, formatTime } from '@/context/DateContext';
+import { useSidebar } from '@/context/SidebarContext';
 import {
   DAYS_OF_WEEK, DAY_LABELS, DayOfWeek,
   shiftDurationHours, ScheduleShift, Employee, Station,
@@ -175,7 +176,7 @@ function ShiftEditPopover({ open, onClose, shift, stations, employees, onSave }:
   if (!open || !shift) return null;
 
   const emp = employees.find(e => e.id === shift.employeeId);
-  const hours = start && end ? (parseInt(end) - parseInt(start)) : shiftDurationHours(shift.timeWindow);
+  const hours = start && end ? shiftDurationHours({ start, end }) : shiftDurationHours(shift.timeWindow);
   const station = stations.find(s => s.id === stationId);
   const wage = emp?.hourlyWage ?? 0;
 
@@ -260,6 +261,7 @@ function ShiftEditPopover({ open, onClose, shift, stations, employees, onSave }:
 export default function SchedulePage() {
   const { schedule, setSchedule, employees, stations, generateNewSchedule, budget, dbLoading } = useAppState();
   const { currentWeek, currentWeekLabel, navigateWeek, navigateToToday, isCurrentWeek } = useDateContext();
+  const { collapsed: sidebarCollapsed } = useSidebar();
 
   const [history, setHistory] = useState<ScheduleShift[][]>([]);
   const [overrideCount, setOverrideCount] = useState(0);
@@ -686,7 +688,7 @@ export default function SchedulePage() {
 
       {/* Sticky bottom summary bar */}
       {schedule && (
-        <div className="fixed bottom-0 left-0 right-0 md:left-64 z-40 bg-card/95 backdrop-blur border-t border-border px-6 py-3 flex items-center gap-6 flex-wrap">
+        <div className={`fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur border-t border-border px-6 py-3 flex items-center gap-6 flex-wrap md:${sidebarCollapsed ? 'left-16' : 'left-64'}`}>
           <div className="text-xs text-muted-foreground">
             <span className="font-semibold text-foreground">{schedule.shifts.length}</span> shifts this week
           </div>

@@ -1,14 +1,14 @@
-import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Zap, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppState } from '@/context/AppContext';
+import { useSidebar } from '@/context/SidebarContext';
 import { NAV_ITEMS } from '@/lib/nav-items';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function AppSidebar() {
   const location = useLocation();
   const { dirtyModules, saveStatus, lastSavedAt } = useAppState();
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, setCollapsed } = useSidebar();
 
   return (
     <aside className={`hidden md:flex flex-col min-h-screen sidebar-gradient border-r border-sidebar-border transition-all duration-200 ${collapsed ? 'w-16' : 'w-64'}`}>

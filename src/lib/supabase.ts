@@ -141,7 +141,8 @@ export async function deleteRequirement(id: string): Promise<void> {
 }
 
 export async function replaceAllRequirements(reqs: CoverageRequirement[]): Promise<void> {
-  await supabase.from('coverage_requirements').delete().neq('id', '');
+  const { error: delError } = await supabase.from('coverage_requirements').delete().neq('id', '');
+  if (delError) throw delError;
   if (reqs.length > 0) {
     const { error } = await supabase.from('coverage_requirements').insert(reqs.map(requirementToRow));
     if (error) throw error;
